@@ -608,6 +608,19 @@ button.unit:hover:not(:disabled){border-color:var(--line2);}
 .ish-body p{margin:0 0 6px;}
 .ish-cost{font-family:var(--mono);color:var(--faint);font-size:12px;}
 
+/* ===== ILLUSTRATIONS / PORTRAITS ===== */
+.bigpix{width:100%;height:100%;display:block;}
+.cxcard{display:flex;gap:13px;align-items:flex-start;}
+.cx-portrait{flex:0 0 74px;width:74px;height:74px;filter:drop-shadow(0 3px 7px rgba(0,0,0,.5));}
+.cx-portrait.sm{flex:0 0 52px;width:52px;height:52px;}
+.cx-main{flex:1;min-width:0;}
+.relic-med{display:flex;align-items:center;justify-content:center;font-size:23px;color:var(--gold);border-radius:50%;background:radial-gradient(circle at 50% 36%,rgba(217,178,91,.28),#1a1714 62%,#0b0a08);border:1px solid rgba(217,178,91,.25);}
+.pick-head{display:flex;align-items:center;gap:11px;margin-bottom:7px;}
+.pick-port{flex:0 0 54px;width:54px;height:54px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.5));}
+.ft-port{width:42px;height:42px;margin:0 auto 5px;}
+.portrait::before{width:50px;height:50px;border:1px solid rgba(232,221,201,.12);box-shadow:inset 0 0 12px rgba(0,0,0,.55);}
+@media (max-width:380px){ .cx-portrait{flex-basis:60px;width:60px;height:60px;} }
+
 /* ===== VFX & POLISH ===== */
 #flash{position:fixed;inset:0;z-index:58;pointer-events:none;opacity:0;transition:opacity .4s ease;mix-blend-mode:screen;}
 .vfx-p{position:absolute;border-radius:50%;pointer-events:none;transform:translate(0,0) scale(1);opacity:1;transition:transform .55s cubic-bezier(.2,.7,.3,1),opacity .55s ease;}
@@ -1558,6 +1571,25 @@ function actIc(k){ const spark='<path d="M12 3 L13.6 9.2 L20 11 L13.6 12.8 L12 1
 function depthBar(d){ const p=Math.max(2,Math.min(100,Math.round(d/WAVES*100))); return `<div class="depthbar" title="Profondeur ${d}/${WAVES}"><i style="width:${p}%"></i></div>`; }
 function monGlyph(m){ return emb(SIG.mon[m.boss?'boss':m.tmpl]||SIG.mon._); }
 function heroGlyph(cls){ return emb(SIG.hero[cls]||SIG.hero._); }
+const PORTRAIT_COL={ guerriere:['#7fb0d8','#26384a'], archere:['#f0a24f','#4a3320'], mage:['#bd95e0','#3a2a4d'], soigneur:['#86c481','#244026'], roublard:['#e6c062','#463a1f'], _mon:['#e0695c','#3a1f1c'], _boss:['#ff7a5c','#4d1d18'] };
+function portraitColors(kind,id,boss){ if(kind==='hero') return PORTRAIT_COL[id]||['#f0a24f','#3a2a1a']; return boss?PORTRAIT_COL._boss:PORTRAIT_COL._mon; }
+function bigPortrait(kind,id,boss){ const glyph=kind==='hero'?(SIG.hero[id]||SIG.hero._):(SIG.mon[boss?'boss':id]||SIG.mon._); const col=portraitColors(kind,id,boss); const gid=(kind+'_'+(boss?'b_':'')+id).replace(/[^a-z0-9_]/gi,'');
+  return `<svg class="bigpix" viewBox="0 0 100 100" aria-hidden="true">
+    <defs>
+      <radialGradient id="bp_${gid}" cx="50%" cy="34%" r="74%"><stop offset="0%" stop-color="${col[0]}" stop-opacity=".6"/><stop offset="55%" stop-color="${col[1]}"/><stop offset="100%" stop-color="#0b0a08"/></radialGradient>
+      <linearGradient id="rim_${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(255,242,222,.55)"/><stop offset="60%" stop-color="rgba(255,242,222,0)"/></linearGradient>
+    </defs>
+    <circle cx="50" cy="50" r="46" fill="url(#bp_${gid})"/>
+    <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="2"/>
+    <circle cx="50" cy="50" r="45" fill="none" stroke="url(#rim_${gid})" stroke-width="1.6"/>
+    <g transform="translate(50,52) scale(2.05) translate(-12,-12)" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:${col[0]};filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.7))">${glyph}</g>
+  </svg>`; }
+let _imc=0;
+function iconMedallion(inner,color){ const gid='im'+(_imc++); return `<svg class="bigpix" viewBox="0 0 100 100" aria-hidden="true"><defs><radialGradient id="${gid}" cx="50%" cy="36%" r="72%"><stop offset="0%" stop-color="${color}" stop-opacity=".5"/><stop offset="60%" stop-color="#1a1714"/><stop offset="100%" stop-color="#0b0a08"/></radialGradient></defs><circle cx="50" cy="50" r="46" fill="url(#${gid})" stroke="rgba(232,221,201,.14)"/><g transform="translate(50,50) scale(2.5) translate(-12,-12)" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:${color}">${inner}</g></svg>`; }
+function matMedallion(m){ return iconMedallion(MAT_SVG[m]||'', MAT_TINT[m]||'#e8ddc8'); }
+function slotMedallion(sl){ return iconMedallion(SLOT_SVG[sl]||'', '#e0913f'); }
+const MAT_LORE={ cuir:'Peau tannée des bêtes abattues — souple et tenace, base de toute armure légère.', croc:'Crocs arrachés aux prédateurs ; affûtés, ils mordent encore.', os:'Ossements durcis au feu, charpente des armures lourdes et des fétiches.', fer:'Métal noir des terres mortes, réveillé à la forge en lames tranchantes.', essence:'Brume arcanique condensée — le souffle même de la magie ancienne.', herbe:'Plantes amères des sous-bois, distillées en potions revigorantes.' };
+const SLOT_LORE={ arme:'L’arme décide qui frappe le premier et qui s’effondre. Surtout de l’⚔ Attaque.', armure:'Entre toi et les crocs : chaque plaque compte. ⛨ Défense et ♥ PV.', talisman:'Un fétiche gravé qui plie le sort en ta faveur. Statistiques variées.' };
 function nodeSvg(t){ return emb(SIG.node[t]||SIG.node.combat); }
 
 function viewTitle(){
@@ -1594,28 +1626,34 @@ function viewCodex(){
   let body;
   if(tab==='chasseurs'){
     body=Object.keys(CLASSES).map(id=>{ const c=CLASSES[id];
-      return `<div class="cxcard">
+      return `<div class="cxcard"><div class="cx-portrait">${bigPortrait('hero',id)}</div><div class="cx-main">
         <div class="cx-top"><b>${c.nom}</b><span class="role">${c.role} · ${c.dmg==='magie'?'magique':'physique'}</span></div>
         <div class="hc-flavor">${c.desc}</div>
         <div class="hc-stats"><span>♥ ${c.base.pv}</span><span>⚔ ${c.base.atk}</span><span>⛨ ${c.base.def}</span><span>⚡ ${c.base.vit}</span></div>
         <div class="passive"><span class="ps-tag">PASSIF</span> <b>${c.passive.nom}</b> — ${c.passive.desc}</div>
         <div class="cx-skill"><span class="sk-tag">1</span> <b>${c.skill.nom}</b> — ${c.skill.desc}</div>
         <div class="cx-skill"><span class="sk-tag">2</span> <b>${c.skillB.nom}</b> — ${c.skillB.desc}</div>
-      </div>`; }).join('');
-  } else {
+      </div></div>`; }).join('');
+  } else if(tab==='bestiaire'){
     body=`<div class="hintbox">Les valeurs indiquées sont celles de la vague 1 : les monstres gagnent en puissance à chaque vague.</div>`+
       Object.keys(MONSTERS).map(id=>{ const m=MONSTERS[id];
-      return `<div class="cxcard ${m.boss?'boss':''}">
+      return `<div class="cxcard ${m.boss?'boss':''}"><div class="cx-portrait">${bigPortrait('mon',id,m.boss)}</div><div class="cx-main">
         <div class="cx-top"><b>${m.nom}</b><span class="trait ${m.boss?'tboss':''}">${m.trait}</span></div>
         <div class="hc-flavor">${m.desc}</div>
         <div class="hc-stats"><span>♥ ${m.pv}</span><span>⚔ ${m.atk}</span><span>⛨ ${m.def}</span><span>⚡ ${m.vit}</span></div>
         <div class="cx-loot">Butin : ${m.loot.map(x=>matIcon(x)+' '+MAT_LABEL[x]).join('  ')}</div>
-      </div>`; }).join('');
+      </div></div>`; }).join('');
+  } else {
+    body=`<div class="hintbox">Le butin de la meute : matériaux à récolter, équipements à forger et reliques à sceller.</div>`+
+      `<div class="rb-h">Matériaux</div>`+MATS.map(m=>`<div class="cxcard"><div class="cx-portrait sm">${matMedallion(m)}</div><div class="cx-main"><div class="cx-top"><b>${MAT_LABEL[m]}</b></div><div class="hc-flavor">${MAT_LORE[m]||''}</div></div></div>`).join('')+
+      `<div class="rb-h">Équipements</div>`+['arme','armure','talisman'].map(sl=>`<div class="cxcard"><div class="cx-portrait sm">${slotMedallion(sl)}</div><div class="cx-main"><div class="cx-top"><b style="text-transform:capitalize">${sl}</b></div><div class="hc-flavor">${SLOT_LORE[sl]||''}</div></div></div>`).join('')+
+      `<div class="rb-h">Reliques</div>`+RELICS.map(r=>`<div class="cxcard"><div class="cx-portrait sm relic-med">${r.ic}</div><div class="cx-main"><div class="cx-top"><b>${r.nom}</b></div><div class="hc-flavor">${r.desc}</div></div></div>`).join('');
   }
   return `<div class="top"><span class="mk">${MARK}</span><span class="brand">CODEX</span><span class="wave"></span></div>
     <div class="tabs">
       <button class="tab ${tab==='chasseurs'?'on':''}" data-ctab="chasseurs">Chasseurs</button>
       <button class="tab ${tab==='bestiaire'?'on':''}" data-ctab="bestiaire">Bestiaire</button>
+      <button class="tab ${tab==='tresors'?'on':''}" data-ctab="tresors">Trésors</button>
     </div>
     <div class="tabbody">${body}</div>
     <button class="cta" id="cx-back">◂ Retour</button>`;
@@ -1623,8 +1661,7 @@ function viewCodex(){
 function viewChoose(){
   const opts=['mage','soigneur','roublard'].map(id=>{ const c=CLASSES[id];
     return `<button class="pick" data-pick="${id}">
-      <div class="pick-name">${c.nom}</div>
-      <div class="pick-role">${c.role}</div>
+      <div class="pick-head"><div class="pick-port">${bigPortrait('hero',id)}</div><div><div class="pick-name">${c.nom}</div><div class="pick-role">${c.role}</div></div></div>
       <div class="pick-flavor">${c.desc}</div>
       <div class="pick-stats">♥${c.base.pv} · ⚔${c.base.atk} · ⛨${c.base.def} · ⚡${c.base.vit}</div>
       <div class="pick-line"><span class="ps-tag">PASSIF</span> <b>${c.passive.nom}</b> — ${c.passive.desc}</div>
@@ -1633,7 +1670,7 @@ function viewChoose(){
     </button>`; }).join('');
   return `<div class="choose">
     <div class="sect-label">Ton escouade</div>
-    <div class="fixed-team"><span>Guerrière</span><span>Archère</span><span class="q">?</span></div>
+    <div class="fixed-team"><span><div class="ft-port">${bigPortrait('hero','guerriere')}</div>Guerrière</span><span><div class="ft-port">${bigPortrait('hero','archere')}</div>Archère</span><span class="q">?</span></div>
     <h2>Choisis ton troisième chasseur</h2>
     <div class="picks">${opts}</div>
   </div>`;
