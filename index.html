@@ -511,6 +511,8 @@ button.unit:hover:not(:disabled){border-color:var(--line2);}
 .tk.owned-perk{border-color:var(--ember-soft);background:rgba(224,145,63,.06);border-style:solid;}
 .tk.owned-perk .tk-name{color:var(--ember);}
 .tk-spec{margin-top:6px;}
+.eq.danger{color:var(--blood);opacity:.9;}
+.eq.danger:hover{border-color:var(--blood);color:var(--blood);opacity:1;}
 .ic16{width:13px;height:13px;vertical-align:-2px;display:inline-block;}
 .gname-ic{width:15px;height:15px;vertical-align:-3px;margin-right:1px;}
 .chip .ic16{margin-right:2px;opacity:.92;}
@@ -659,36 +661,44 @@ const META_TREE=[
     {nom:'Constitution', desc:'+8% PV maximum supplémentaires.', cost:3},
     {nom:'Cuir épais', desc:'−10% de tous les dégâts subis.', cost:5},
     {nom:'Colosse', desc:'+12% PV maximum supplémentaires.', cost:9},
+    {nom:'Titan', desc:'+15% PV maximum supplémentaires.', cost:14},
+    {nom:'Inébranlable', desc:'−8% de dégâts subis supplémentaires.', cost:20},
   ]},
   {id:'crocs', nom:'Crocs', ic:'⚔', nodes:[
     {nom:'Tranchant', desc:'+7% de dégâts infligés.', cost:2},
     {nom:'Œil acéré', desc:'+6% de chances de coup critique.', cost:3},
     {nom:'Hargne', desc:'+8% de dégâts infligés.', cost:5},
     {nom:'Prédateur', desc:'+10% de dégâts infligés.', cost:9},
+    {nom:'Carnage', desc:'+12% de dégâts infligés.', cost:14},
+    {nom:'Sang-froid', desc:'+8% de coup critique.', cost:20},
   ]},
   {id:'butin', nom:'Butin', ic:'◈', nodes:[
     {nom:'Fioles', desc:'Commence chaque battue avec 2 potions de plus.', cost:2},
     {nom:'Pillage', desc:'Commence avec +4 Cuir, Croc et Fer.', cost:3},
     {nom:'Marchandage', desc:'Marchés 15% moins chers.', cost:5},
     {nom:'Héritage', desc:'Commence chaque battue avec une relique aléatoire.', cost:9},
+    {nom:'Fortune', desc:'+50% d’Or gagné en combat.', cost:14},
+    {nom:'Caravane', desc:'Marchés 15% moins chers en plus, et +40 Or au départ de la battue.', cost:20},
   ]},
   {id:'instinct', nom:'Instinct', ic:'✷', nodes:[
     {nom:'Égide', desc:'Chaque chasseur gagne 10 de bouclier au début de chaque combat.', cost:2},
     {nom:'Célérité', desc:'Recharges de compétences réduites de 1.', cost:3},
     {nom:'Maîtrise', desc:'Les compétences agissent comme à un niveau supérieur.', cost:5},
     {nom:'Meute aguerrie', desc:'Commence chaque battue avec la 2ᵉ compétence débloquée pour tous.', cost:9},
+    {nom:'Transe', desc:'Régénère 5 PV à toute l’escouade en fin de round.', cost:14},
+    {nom:'Prophétie', desc:'Commence chaque battue avec 2 reliques aléatoires.', cost:20},
   ]},
 ];
 function metaLvl(id){ return (meta.upgrades&&meta.upgrades[id])||0; }
 function metaMods(){
   const v=metaLvl('vigueur'), c=metaLvl('crocs'), b=metaLvl('butin'), i=metaLvl('instinct');
   return {
-    hpPct:(v>=1?8:0)+(v>=2?8:0)+(v>=4?12:0),
-    dmgTaken:(v>=3?0.10:0),
-    dmgPct:(c>=1?7:0)+(c>=3?8:0)+(c>=4?10:0),
-    crit:(c>=2?0.06:0),
-    potions:(b>=1?2:0), mats:(b>=2?4:0), shopDisc:(b>=3?0.15:0), startRelic:b>=4,
-    shield:(i>=1?10:0), cd:i>=2, skillLvl:i>=3, skillB:i>=4,
+    hpPct:(v>=1?8:0)+(v>=2?8:0)+(v>=4?12:0)+(v>=5?15:0),
+    dmgTaken:(v>=3?0.10:0)+(v>=6?0.08:0),
+    dmgPct:(c>=1?7:0)+(c>=3?8:0)+(c>=4?10:0)+(c>=5?12:0),
+    crit:(c>=2?0.06:0)+(c>=6?0.08:0),
+    potions:(b>=1?2:0), mats:(b>=2?4:0), shopDisc:(b>=3?0.15:0)+(b>=6?0.15:0), startRelic:b>=4, goldPct:(b>=5?50:0), startGold:(b>=6?40:0),
+    shield:(i>=1?10:0), cd:i>=2, skillLvl:i>=3, skillB:i>=4, regen:(i>=5?5:0), startRelic2:i>=6,
   };
 }
 function buyMeta(id){
@@ -803,9 +813,10 @@ function newRun(thirdClass){
       lastLoot:null, buffAtk:null, log:[], depthReached:0, relics:[] };
   const M=metaMods();
   g.inv.potions+=M.potions;
+  g.inv.gold+=(M.startGold||0);
   if(M.mats){ ['cuir','croc','fer'].forEach(k=>g.inv.mats[k]+=M.mats); }
   if(M.skillB){ g.team.forEach(h=>{ h.skillBunlocked=true; }); }
-  if(M.startRelic && relicsLeft()){ addRelic(pick(RELICS.filter(r=>!hasRelic(r.id))).id); }
+  { let nRel=(M.startRelic?1:0); if(M.startRelic2) nRel=2; for(let z=0;z<nRel;z++){ if(relicsLeft()) addRelic(pick(RELICS.filter(r=>!hasRelic(r.id))).id); } }
   genMap();
   meta.runs=(meta.runs||0)+1; save();
   ui.screen='map'; render();
@@ -1072,6 +1083,7 @@ function tickStatuses(){
   g.team.forEach(h=>{ if(h.vuln>0) h.vuln--; });
   if(g.buffAtk){ g.buffAtk.turns--; if(g.buffAtk.turns<=0) g.buffAtk=null; }
   if(hasRelic('regen_meute')) g.team.forEach((h,hi)=>{ if(h.pv>0){ const tm=heroStats(h).pvMax; if(h.pv<tm){ h.pv=Math.min(tm,h.pv+4); fx('hero-'+hi,'+4','heal'); } } });
+  { const rg=metaMods().regen; if(rg) g.team.forEach((h,hi)=>{ if(h.pv>0){ const tm=heroStats(h).pvMax; if(h.pv<tm){ h.pv=Math.min(tm,h.pv+rg); fx('hero-'+hi,'+'+rg,'heal'); } } }); }
   const sg=g.team.find(h=>h.pv>0 && CLASSES[h.cls].pid==='grace');
   if(sg){ const t=lowestAlly(); if(t){ const tm=heroStats(t.x).pvMax; if(t.x.pv<tm){ const heal=Math.round(heroStats(sg).atk*0.6*(1+perkSum(sg,'healPct')/100)); t.x.pv=Math.min(tm,t.x.pv+heal); if(heal>0) fx('hero-'+t.i,'+'+heal,'heal'); } } }
 }
@@ -1097,10 +1109,12 @@ function endCombat(){
   let gold=rint(4,7)+Math.round(depth*1.6);
   if(g.combatKind==='elite') gold+=8+depth;
   if(g.combatKind==='boss') gold+=40;
+  gold=Math.round(gold*(1+(metaMods().goldPct||0)/100));
   loot.gold=gold;
   applyLoot(loot); g.lastLoot=lootSummary(loot);
   _ending=false;
-  completeNode();
+  if(g.combatKind==='boss'){ completeNode(); }
+  else { ui.screen='loot'; render(); }
 }
 function gameOver(win){
   const reached=win?BOSS_WAVE:(g.depthReached||1);
@@ -1651,6 +1665,25 @@ function campForge(){
     <div class="hintbox">Dépense ton <b>Or ⊙</b> (gagné en combat et à la revente au marché) pour <b>renforcer</b> un équipement : +25% sur toutes ses stats par palier, avec une chance de révéler une propriété. Maximum +${MAX_PLUS}.</div>
     ${upg}`;
 }
+function viewLoot(){
+  const banner=g.lastLoot?`<div class="loot"><div class="loot-h">Butin de la bataille</div>${g.lastLoot}</div>`:`<div class="loot"><div class="loot-h">Butin de la bataille</div><div class="dim">Rien cette fois.</div></div>`;
+  const gear = !g.inv.gear.length?`<div class="empty-box">Aucun équipement en réserve.</div>`
+    : g.inv.gear.map(it=>`<div class="gear-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
+      <button class="gr-main gr-click" data-equipbest="${it.id}" title="Équiper automatiquement sur ${optimName(it)}"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${slotIcon(it.slot)} ${gearName(it)} <span class="gr-go">▸ équiper</span></div>
+        <div class="gr-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div><div class="gr-delta">${deltaVerdict(it)}</div></button>
+      <div class="gr-equip">${g.team.map((h,i)=>`<button class="eq" data-equip="${it.id}:${i}" title="Équiper sur ${h.nom} · ${slotDelta(it,h).arrow}">${shortName(h.nom)}</button>`).join('')}<button class="eq danger" data-sell="${it.id}" title="Vendre contre de l’Or">Vendre +${sellValue(it)} ⊙</button></div>
+    </div>`).join('');
+  const list=allGearList();
+  const upg=list.length?forgeRows(list):'';
+  return `${topBar('Butin')}
+    ${partyStrip()}
+    ${banner}
+    ${resourceStrip()}
+    <div class="rb-h">Équipement — clique pour équiper, ou vends</div>${gear}
+    <div class="rb-h shop-sell-h">Atelier — fabriquer</div>${campAtelier()}
+    ${upg?`<div class="rb-h shop-sell-h">Forge — renforcer (Or)</div>${upg}`:''}
+    <button class="cta sticky-cta" id="loot-cont">Reprendre la route ▸</button>`;
+}
 function viewMap(){
   const R=g.map.R, rows=g.map.rows;
   const focus = g.pos.row>=0 ? {r:g.pos.row,i:g.pos.node} : {r:0,i:0};
@@ -1796,6 +1829,7 @@ function render(){
   else if(ui.screen==='encounter') html=viewEncounter();
   else if(ui.screen==='shop') html=viewShop();
   else if(ui.screen==='combat') html=viewCombat();
+  else if(ui.screen==='loot') html=viewLoot();
   else if(ui.screen==='camp') html=viewCamp();
   else if(ui.screen==='lair') html=viewLair();
   else if(ui.screen==='over') html=viewOver();
@@ -1831,6 +1865,14 @@ function bind(){
     const bp=$('buy-potion'); if(bp) bp.onclick=()=>buyPotion();
     const br=$('buy-relic'); if(br) br.onclick=()=>buyRelicShop();
     const lv=$('shop-leave'); if(lv) lv.onclick=()=>completeNode();
+  }
+  else if(ui.screen==='loot'){
+    bindEach('[data-equipbest]',el=>equipBest(+el.dataset.equipbest));
+    bindEach('[data-equip]',el=>{ const [id,hi]=el.dataset.equip.split(':'); equip(+id,+hi); });
+    bindEach('[data-sell]',el=>sellGear(+el.dataset.sell));
+    bindEach('[data-craft]',el=>craft(el.dataset.craft));
+    bindEach('[data-upg]',el=>upgradeGear(+el.dataset.upg));
+    const c=$('loot-cont'); if(c) c.onclick=()=>{ g.lastLoot=null; completeNode(); };
   }
   else if(ui.screen==='combat'){
     bindEach('[data-mon]',el=>{ const i=+el.dataset.mon; if(monAlive(i)){ ui.target=i; render(); } });
