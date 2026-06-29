@@ -511,6 +511,14 @@ button.unit:hover:not(:disabled){border-color:var(--line2);}
 .tk.owned-perk{border-color:var(--ember-soft);background:rgba(224,145,63,.06);border-style:solid;}
 .tk.owned-perk .tk-name{color:var(--ember);}
 .tk-spec{margin-top:6px;}
+.ic16{width:13px;height:13px;vertical-align:-2px;display:inline-block;}
+.gname-ic{width:15px;height:15px;vertical-align:-3px;margin-right:1px;}
+.chip .ic16{margin-right:2px;opacity:.92;}
+.cx-loot .ic16{vertical-align:-2px;margin-right:1px;}
+.lore-strip{display:flex;justify-content:center;gap:16px;margin:2px 0 14px;}
+.lore-strip svg.emb{width:26px;height:26px;color:var(--faint);opacity:.62;transition:.2s;}
+.lore-strip svg.emb.boss{color:var(--blood);opacity:.8;}
+.lore-strip:hover svg.emb{opacity:.85;}
 </style>
 </head>
 <body>
@@ -774,7 +782,7 @@ function lootSummary(loot){
   if(loot.gold) parts.push(`<div class="loot-mats"><span class="chip gold">+${loot.gold} Or ⊙</span></div>`);
   const mk=Object.keys(loot.mats);
   if(mk.length) parts.push(`<div class="loot-mats"><div class="chips">${mk.map(m=>`<span class="chip">${MAT_LABEL[m]} +${loot.mats[m]}</span>`).join('')}</div></div>`);
-  if(loot.gear.length) parts.push(`<div class="loot-gear">${loot.gear.map(it=>`<span class="loot-item" style="color:${RAR_COLOR[it.rarity]}">⬩ ${it.nom} <small>(${it.rarity}${it.prop?' · '+PROP_LABEL[it.prop]:''}) · ⌖ ${optimName(it)}</small></span>`).join('')}</div>`);
+  if(loot.gear.length) parts.push(`<div class="loot-gear">${loot.gear.map(it=>`<span class="loot-item" style="color:${RAR_COLOR[it.rarity]}">${slotIcon(it.slot)} ${it.nom} <small>(${it.rarity}${it.prop?' · '+PROP_LABEL[it.prop]:''}) · ⌖ ${optimName(it)}</small></span>`).join('')}</div>`);
   if(!parts.length) return `<div class="dim">Aucun butin cette fois.</div>`;
   return parts.join('');
 }
@@ -1305,7 +1313,7 @@ function forgeRows(list){ return list.map(o=>{ const it=o.it; const max=(it.plus
   const prev=max?'':`<div class="fg-prev">→ ${upgradePreview(it)}</div>`;
   const btn=max?`<span class="maxplus">+${MAX_PLUS} max</span>`:`<button class="mini" data-upg="${it.id}" ${(g.inv.gold||0)>=cost?'':'disabled'}>Renforcer · ${cost} ⊙</button>`;
   return `<div class="forge-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
-    <div class="fg-main"><div class="fg-name" style="color:${RAR_COLOR[it.rarity]}">${gearName(it)} <span class="fg-where">· ${o.where}</span></div>
+    <div class="fg-main"><div class="fg-name" style="color:${RAR_COLOR[it.rarity]}">${slotIcon(it.slot)} ${gearName(it)} <span class="fg-where">· ${o.where}</span></div>
       <div class="fg-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div>${prev}</div>
     ${btn}</div>`; }).join(''); }
 function allGearList(){ const list=[]; g.team.forEach((h,i)=>['arme','armure','talisman'].forEach(sl=>{ if(h.gear[sl]) list.push({it:h.gear[sl],where:h.nom}); })); g.inv.gear.forEach(it=>list.push({it,where:'Sac'})); return list; }
@@ -1352,6 +1360,25 @@ const SIG={
     boss:'<path d="M4 7 Q9 6 9 10"/><path d="M20 7 Q15 6 15 10"/><path d="M7 10 Q12 8 17 10 Q17 15 12 18 Q7 15 7 10 Z"/><circle cx="10" cy="13" r="0.9" fill="currentColor" stroke="none"/><circle cx="14" cy="13" r="0.9" fill="currentColor" stroke="none"/>'
   }
 };
+const MAT_TINT={cuir:'#b08d57',croc:'#d8d2c4',os:'#e8ddc8',fer:'#8aa1b4',essence:'#a982cf',herbe:'#74ad6f'};
+const MAT_SVG={
+  cuir:'<path d="M6 5 Q9 3.5 12 5 Q15 3.5 18 5 Q20 10 17.5 14 Q16 20 12 20.5 Q8 20 6.5 14 Q4 10 6 5 Z"/><path d="M12 7 V18" stroke-dasharray="1.4 2"/>',
+  croc:'<path d="M8 4 H16 Q14.5 13 12 20 Q9.5 13 8 4 Z"/>',
+  os:'<path d="M9 9 L15 15"/><circle cx="7.6" cy="7.6" r="1.9"/><circle cx="9.6" cy="6.4" r="1.5"/><circle cx="16.4" cy="16.4" r="1.9"/><circle cx="14.4" cy="17.6" r="1.5"/>',
+  fer:'<path d="M6 14 L8.5 9 H15.5 L18 14 Z"/><path d="M6 14 H18"/><path d="M9 14 L10 9"/><path d="M15 14 L14 9"/>',
+  essence:'<path d="M10 3 H14"/><path d="M11 3 V7.5 L7.5 16.5 Q7.5 20 11 20 H13 Q16.5 20 16.5 16.5 L13 7.5 V3"/><path d="M8.6 14 H15.4"/><path d="M12 10.5 L12.6 12 L14.1 12.6 L12.6 13.2 L12 14.7 L11.4 13.2 L9.9 12.6 L11.4 12 Z" fill="currentColor" stroke="none"/>',
+  herbe:'<path d="M12 21 V8"/><path d="M12 13 Q6.5 12 5.5 6 Q11 7 12 13"/><path d="M12 15 Q17.5 14 18.5 8 Q13 9 12 15"/>',
+};
+const SLOT_SVG={
+  arme:'<path d="M12 3 L14 8 V13 H10 V8 Z"/><path d="M7.5 13.5 H16.5"/><path d="M11 13.5 V19 H13 V13.5"/>',
+  armure:'<path d="M6 6 L9 4 Q12 6 15 4 L18 6 L17 11 Q17 18 12 20.5 Q7 18 7 11 Z"/><path d="M12 6 V20"/>',
+  talisman:'<path d="M8 4 L11 9.5"/><path d="M16 4 L13 9.5"/><circle cx="12" cy="14" r="4.6"/><path d="M12 11.6 L12.8 13.3 L14.6 13.5 L13.3 14.8 L13.6 16.6 L12 15.7 L10.4 16.6 L10.7 14.8 L9.4 13.5 L11.2 13.3 Z" fill="currentColor" stroke="none"/>',
+};
+function svgIcon(inner,cls,style){ return `<svg class="ic16 ${cls||''}"${style?` style="${style}"`:''} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`; }
+function matIcon(m){ return svgIcon(MAT_SVG[m]||'', '', 'color:'+(MAT_TINT[m]||'var(--dim)')); }
+function slotIcon(sl){ return svgIcon(SLOT_SVG[sl]||'', 'gname-ic'); }
+function goldIcon(){ return svgIcon('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.6"/><path d="M12 9.4 V14.6 M10.6 10.6 H13.2"/>','','color:var(--gold)'); }
+function potionIcon(){ return svgIcon('<path d="M10 3 H14"/><path d="M11 3 V6 L8 11 V18 Q8 20 10 20 H14 Q16 20 16 18 V11 L13 6 V3"/><path d="M8.4 13 H15.6"/>','','color:var(--heal)'); }
 function monGlyph(m){ return emb(SIG.mon[m.boss?'boss':m.tmpl]||SIG.mon._); }
 function heroGlyph(cls){ return emb(SIG.hero[cls]||SIG.hero._); }
 function nodeSvg(t){ return emb(SIG.node[t]||SIG.node.combat); }
@@ -1361,6 +1388,7 @@ function viewTitle(){
     <div class="mark-big">${MARK}</div>
     <h1>MEUTE</h1>
     <p class="tag">Mène une escouade de trois chasseurs à travers dix vagues de monstres. Pille, fabrique, équipe — et abats le Béhémoth.</p>
+    <div class="lore-strip">${emb(SIG.mon.loup)}${emb(SIG.mon.ogre)}${emb(SIG.mon.spectre)}${emb(SIG.mon.boss,'boss')}</div>
     <button class="cta" id="start">Nouvelle battue</button>
     <button class="btn2" id="codex">Codex des chasseurs</button>
     <button class="btn2" id="lair">Tanière de la meute${meta.trophies?` · ${meta.trophies} ◆`:''}</button>
@@ -1397,7 +1425,7 @@ function viewCodex(){
         <div class="cx-top"><b>${m.nom}</b><span class="trait ${m.boss?'tboss':''}">${m.trait}</span></div>
         <div class="hc-flavor">${m.desc}</div>
         <div class="hc-stats"><span>♥ ${m.pv}</span><span>⚔ ${m.atk}</span><span>⛨ ${m.def}</span><span>⚡ ${m.vit}</span></div>
-        <div class="cx-loot">Butin : ${m.loot.map(x=>MAT_LABEL[x]).join(', ')}</div>
+        <div class="cx-loot">Butin : ${m.loot.map(x=>matIcon(x)+' '+MAT_LABEL[x]).join('  ')}</div>
       </div>`; }).join('');
   }
   return `<div class="top"><span class="mk">${MARK}</span><span class="brand">CODEX</span><span class="wave"></span></div>
@@ -1478,8 +1506,8 @@ function viewCombat(){
     <div class="clog">${g.log.slice(0,3).map(l=>`<div>${l}</div>`).join('')}</div>`;
 }
 function resourceStrip(){
-  const mats=MATS.map(m=>`<span class="chip">${MAT_LABEL[m]} ·${g.inv.mats[m]||0}</span>`).join('');
-  return `<div class="strip">${mats}<span class="chip">Potion ·${g.inv.potions}</span><span class="chip gold">Or ·${g.inv.gold||0} ⊙</span></div>`;
+  const mats=MATS.map(m=>`<span class="chip">${matIcon(m)} ${MAT_LABEL[m]} ·${g.inv.mats[m]||0}</span>`).join('');
+  return `<div class="strip">${mats}<span class="chip">${potionIcon()} Potion ·${g.inv.potions}</span><span class="chip gold">${goldIcon()} Or ·${g.inv.gold||0}</span></div>`;
 }
 function viewCamp(){
   return `${topBar('Camp')}
@@ -1498,11 +1526,11 @@ function campEquipe(){
     const st=heroStats(h); const c=CLASSES[h.cls];
     const slots=['arme','armure','talisman'].map(sl=>{ const it=h.gear[sl];
       if(it){
-        return `<div class="slot"><span class="slot-k">${sl}</span><button class="gear-mini" data-unequip="${i}:${sl}" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}"><span style="color:${RAR_COLOR[it.rarity]}">${gearName(it)}</span> ${gearStatsShort(it)} ${gearPropTag(it)} ${optimMark(it,i)}</button></div>`;
+        return `<div class="slot"><span class="slot-k">${sl}</span><button class="gear-mini" data-unequip="${i}:${sl}" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}"><span style="color:${RAR_COLOR[it.rarity]}">${slotIcon(it.slot)} ${gearName(it)}</span> ${gearStatsShort(it)} ${gearPropTag(it)} ${optimMark(it,i)}</button></div>`;
       }
       const avail=g.inv.gear.filter(x=>x.slot===sl).sort((a,b)=>statSum(b)-statSum(a)).slice(0,3);
       const body=avail.length
-        ? `<div class="eqchips">${avail.map(x=>`<button class="eqs" data-equip="${x.id}:${i}" style="--rc:${RAR_COLOR[x.rarity]};border-left-color:${RAR_COLOR[x.rarity]}"><span style="color:${RAR_COLOR[x.rarity]}">${gearName(x)}</span> ${gearStatsShort(x)} ${deltaTag(x,h)}</button>`).join('')}</div>`
+        ? `<div class="eqchips">${avail.map(x=>`<button class="eqs" data-equip="${x.id}:${i}" style="--rc:${RAR_COLOR[x.rarity]};border-left-color:${RAR_COLOR[x.rarity]}"><span style="color:${RAR_COLOR[x.rarity]}">${slotIcon(x.slot)} ${gearName(x)}</span> ${gearStatsShort(x)} ${deltaTag(x,h)}</button>`).join('')}</div>`
         : `<span class="empty">— vide —</span>`;
       return `<div class="slot ${avail.length?'slot-col':''}"><span class="slot-k">${sl}</span>${body}</div>`;
     }).join('');
@@ -1593,13 +1621,13 @@ function campSac(){
   if(!g.inv.gear.length){ gearList=`<div class="empty-box">Aucun équipement en réserve. Abats des monstres ou fabrique-en à l’Atelier.</div>`; }
   else {
     gearList=g.inv.gear.map(it=>`<div class="gear-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
-      <button class="gr-main gr-click" data-equipbest="${it.id}" title="Équiper automatiquement sur ${optimName(it)}"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${gearName(it)} <span class="gr-go">▸ équiper</span></div>
+      <button class="gr-main gr-click" data-equipbest="${it.id}" title="Équiper automatiquement sur ${optimName(it)}"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${slotIcon(it.slot)} ${gearName(it)} <span class="gr-go">▸ équiper</span></div>
         <div class="gr-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div><div class="gr-delta">${deltaVerdict(it)}</div></button>
       <div class="gr-equip">${g.team.map((h,i)=>`<button class="eq" data-equip="${it.id}:${i}" title="Équiper sur ${h.nom} · ${slotDelta(it,h).arrow}">${shortName(h.nom)}</button>`).join('')}</div>
     </div>`).join('');
   }
-  const mats=MATS.map(m=>`<span class="chip">${MAT_LABEL[m]} ·${g.inv.mats[m]||0}</span>`).join('');
-  return `<div class="res-block"><div class="rb-h">Matériaux</div><div class="chips">${mats}<span class="chip">Potion ·${g.inv.potions}</span></div></div>
+  const mats=MATS.map(m=>`<span class="chip">${matIcon(m)} ${MAT_LABEL[m]} ·${g.inv.mats[m]||0}</span>`).join('');
+  return `<div class="res-block"><div class="rb-h">Matériaux</div><div class="chips">${mats}<span class="chip">${potionIcon()} Potion ·${g.inv.potions}</span><span class="chip gold">${goldIcon()} Or ·${g.inv.gold||0}</span></div></div>
           <div class="res-block"><div class="rb-h">Équipement en réserve · ${g.inv.gear.length}</div><div class="hintbox" style="margin-bottom:10px;">Clique un équipement pour l’<b>équiper d’un coup</b> sur le chasseur idéal, ou choisis une cible précise avec les pastilles à droite.</div>${gearList}</div>`;
 }
 function atelierCost(cost){ return Object.keys(cost).map(k=>{ const have=g.inv.mats[k]||0, need=cost[k];
@@ -1673,13 +1701,13 @@ function viewEncounter(){
 }
 function viewShop(){
   const buy=g.shop.stock.map((s,k)=>`<div class="shop-row" style="--rc:${RAR_COLOR[s.it.rarity]};border-left-color:${RAR_COLOR[s.it.rarity]}">
-      <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[s.it.rarity]}">${gearName(s.it)}</div>
+      <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[s.it.rarity]}">${slotIcon(s.it.slot)} ${gearName(s.it)}</div>
         <div class="gr-meta">${s.it.slot} · ${s.it.rarity} · ${gearStatsShort(s.it)} ${gearPropTag(s.it)}</div><div class="gr-delta">${deltaVerdict(s.it)}</div></div>
       ${s.sold?`<span class="maxed">vendu</span>`:`<button class="mini" data-buy="${k}" ${(g.inv.gold||0)>=s.cost?'':'disabled'}>${s.cost} ⊙</button>`}
     </div>`).join('');
   const sell = !g.inv.gear.length?`<div class="empty-box">Rien à revendre.</div>`
     : g.inv.gear.map(it=>`<div class="shop-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
-      <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${gearName(it)}</div>
+      <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${slotIcon(it.slot)} ${gearName(it)}</div>
         <div class="gr-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div><div class="gr-opt">${optimTag(it)}</div></div>
       <button class="mini danger" data-sell="${it.id}">Vendre · +${sellValue(it)} ⊙</button>
     </div>`).join('');
