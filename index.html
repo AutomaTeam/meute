@@ -503,6 +503,14 @@ button.unit:hover:not(:disabled){border-color:var(--line2);}
 .fg-meta{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:2px;}
 .fg-prev{font-family:var(--mono);font-size:11px;color:var(--heal);margin-top:3px;}
 .maxplus{color:var(--gold);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;}
+.hot{color:var(--ember);font-weight:700;font-size:10px;vertical-align:middle;}
+.gr-main.gr-click{cursor:pointer;background:none;border:none;font-family:var(--sans);text-align:left;padding:0;color:inherit;display:block;}
+.gr-main.gr-click:hover .gr-name{text-decoration:underline;text-decoration-color:var(--ember);}
+.gr-go{font-size:10px;color:var(--faint);font-weight:400;letter-spacing:.04em;}
+.gr-main.gr-click:hover .gr-go{color:var(--ember);}
+.tk.owned-perk{border-color:var(--ember-soft);background:rgba(224,145,63,.06);border-style:solid;}
+.tk.owned-perk .tk-name{color:var(--ember);}
+.tk-spec{margin-top:6px;}
 </style>
 </head>
 <body>
@@ -688,23 +696,26 @@ let ui={screen:'title', tab:'equipe', target:0, _fx:[]};
 /* ============================================================ HÉROS */
 let GEAR_ID=1;
 function makeHero(cls){ return {cls,nom:CLASSES[cls].nom,lvl:1,pv:CLASSES[cls].base.pv,
-  gear:{arme:null,armure:null,talisman:null},skillLvl:1,skillBunlocked:false,skillBLvl:1,cdA:0,cdB:0}; }
+  gear:{arme:null,armure:null,talisman:null},skillLvl:1,skillBunlocked:false,skillBLvl:1,cdA:0,cdB:0,perks:[]}; }
 function heroStats(h){
   const c=CLASSES[h.cls]; const f=1+0.085*(h.lvl-1);
   let pvMax=c.base.pv*f, atk=c.base.atk*f, def=c.base.def*f, vit=c.base.vit*f;
   for(const sl of ['arme','armure','talisman']){ const it=h.gear[sl]; if(it){
     pvMax+=it.stats.pvMax||0; atk+=it.stats.atk||0; def+=it.stats.def||0; vit+=it.stats.vit||0; } }
   if(hasRelic('coeur_de_pierre')) pvMax+=25;
+  def+=perkSum(h,'defFlat');
   pvMax*=1+metaMods().hpPct/100;
+  pvMax*=1+perkSum(h,'hpPct')/100;
   return {pvMax:Math.round(pvMax),atk:Math.round(atk),def:Math.round(def),vit:Math.round(vit)};
 }
 function heroAtk(h){ let a=heroStats(h).atk;
   if(CLASSES[h.cls].pid==='precision') a*=1.2;
+  a*=1+perkSum(h,'dmgPct')/100;
   if(g.buffAtk && g.buffAtk.turns>0) a*=(1+g.buffAtk.pct);
   return a; }
 function heroHasProp(h,p){ return ['arme','armure','talisman'].some(sl=>h.gear[sl]&&h.gear[sl].prop===p); }
-function skillCdA(h){ let b=CLASSES[h.cls].skill.cd; if(h.skillLvl>=3)b--; if(heroHasProp(h,'vif'))b--; if(hasRelic('fureur_du_loup'))b--; if(metaMods().cd)b--; return Math.max(1,b); }
-function skillCdB(h){ let b=CLASSES[h.cls].skillB.cd; if(h.skillBLvl>=3)b--; if(heroHasProp(h,'vif'))b--; if(hasRelic('fureur_du_loup'))b--; if(metaMods().cd)b--; return Math.max(1,b); }
+function skillCdA(h){ let b=CLASSES[h.cls].skill.cd; if(h.skillLvl>=3)b--; if(heroHasProp(h,'vif'))b--; if(hasRelic('fureur_du_loup'))b--; if(metaMods().cd)b--; b-=perkSum(h,'cd'); return Math.max(1,b); }
+function skillCdB(h){ let b=CLASSES[h.cls].skillB.cd; if(h.skillBLvl>=3)b--; if(heroHasProp(h,'vif'))b--; if(hasRelic('fureur_du_loup'))b--; if(metaMods().cd)b--; b-=perkSum(h,'cd'); return Math.max(1,b); }
 
 /* ============================================================ LOOT / GEAR */
 function genGear(rarity, wave, forceSlot){
@@ -897,6 +908,8 @@ function startCombat(depth, kind){
   g.team.forEach(h=>{ h.cdA=0; h.cdB=0; h.poison=null; h.shield=0; h.vuln=0; });
   if(hasRelic('egide')){ const gw=g.team.find(h=>h.cls==='guerriere' && h.pv>0); if(gw) gw.shield=20; }
   { const ms=metaMods().shield; if(ms) g.team.forEach(h=>{ if(h.pv>0) h.shield=(h.shield||0)+ms; }); }
+  g.team.forEach(h=>{ if(h.pv>0){ const ps=perkSum(h,'shield'); if(ps) h.shield=(h.shield||0)+ps; } });
+  { const sa=g.team.reduce((m,h)=>Math.max(m,(h.pv>0?perkSum(h,'shieldAll'):0)),0); if(sa) g.team.forEach(h=>{ if(h.pv>0) h.shield=(h.shield||0)+sa; }); }
   g.buffAtk=null;
   ui.screen='combat'; ui.target=firstLivingMon(); ui._fx=[];
   beginRound();
@@ -960,7 +973,7 @@ function heroAction(act){
     if(!monAlive(ui.target)) ui.target=firstLivingMon();
     const magic=c.dmg==='magie';
     let d=computeDmg(heroAtk(h), g.mons[ui.target].def, magic, h.cls==='mage');
-    let crit=(c.pid==='coupfourre'?0.2:0)+(heroHasProp(h,'aiguise')?0.12:0)+(hasRelic('lame_affutee')?0.1:0)+metaMods().crit;
+    let crit=(c.pid==='coupfourre'?0.2:0)+(heroHasProp(h,'aiguise')?0.12:0)+(hasRelic('lame_affutee')?0.1:0)+metaMods().crit+perkSum(h,'crit');
     if(crit>0 && chance(crit)){ d=Math.round(d*1.8); fx('mon-'+ui.target,'CRIT','crit'); }
     dmgMon(ui.target,d); clog(`${h.nom} attaque ${g.mons[ui.target].nom} · ${d}`);
   } else if(act==='skillA'){
@@ -973,7 +986,7 @@ function heroAction(act){
     fx('hero-'+hi,'+'+heal,'heal'); clog(`${h.nom} boit une potion · +${heal}`);
   } else return;
 
-  let lifePct=(heroHasProp(h,'vampirique')?0.25:0)+(hasRelic('pacte_de_sang')?0.15:0);
+  let lifePct=(heroHasProp(h,'vampirique')?0.25:0)+(hasRelic('pacte_de_sang')?0.15:0)+perkSum(h,'lifesteal');
   if(_dealt>0 && lifePct>0){ const st=heroStats(h); const heal=Math.round(_dealt*lifePct); h.pv=Math.min(st.pvMax,h.pv+heal); if(heal>0) fx('hero-'+hi,'+'+heal,'heal'); }
   checkDeaths();
   if(!anyHeroAlive()){ render(); setTimeout(()=>gameOver(false),360); return; }
@@ -982,6 +995,7 @@ function heroAction(act){
 }
 function castSkill(h, slot){
   const c=CLASSES[h.cls]; const sk=slot==='B'?c.skillB:c.skill;
+  const healMul=1+perkSum(h,'healPct')/100;
   let lvl=(slot==='B'?h.skillBLvl:h.skillLvl)+(hasRelic('talisman_du_traqueur')?1:0)+(metaMods().skillLvl?1:0); const lm=1+0.35*(lvl-1);
   const atk=heroAtk(h); const pen=(h.cls==='mage');
   switch(sk.kind){
@@ -997,10 +1011,10 @@ function castSkill(h, slot){
       g.mons.forEach((m,i)=>{ if(m.pv>0){ let d=Math.round(atk*sk.mult*lm); d=Math.max(1,d-Math.floor(m.def*(sk.magic?(pen?0.1:0.25):0.5))); dmgMon(i,d); } });
       clog(`${h.nom} — ${sk.nom} frappe tous les ennemis`); break; }
     case 'heal':{
-      const t=lowestAlly(); if(!t) break; const heal=Math.round(atk*sk.mult*lm); const tm=heroStats(t.x).pvMax;
+      const t=lowestAlly(); if(!t) break; const heal=Math.round(atk*sk.mult*lm*healMul); const tm=heroStats(t.x).pvMax;
       t.x.pv=Math.min(tm,t.x.pv+heal); fx('hero-'+t.i,'+'+heal,'heal'); clog(`${h.nom} soigne ${t.x.nom} · +${heal}`); break; }
     case 'heal_all':{
-      g.team.forEach((x,i)=>{ if(x.pv>0){ const tm=heroStats(x).pvMax; const heal=Math.round(atk*sk.mult*lm); x.pv=Math.min(tm,x.pv+heal); fx('hero-'+i,'+'+heal,'heal'); } });
+      g.team.forEach((x,i)=>{ if(x.pv>0){ const tm=heroStats(x).pvMax; const heal=Math.round(atk*sk.mult*lm*healMul); x.pv=Math.min(tm,x.pv+heal); fx('hero-'+i,'+'+heal,'heal'); } });
       clog(`${h.nom} — ${sk.nom} soigne toute l’escouade`); break; }
     case 'buff_atk':{
       g.buffAtk={pct:sk.pct,turns:sk.turns};
@@ -1034,9 +1048,12 @@ function resolveMon(m,i){
   }
   const liv=g.team.map((h,hi)=>({h,hi})).filter(o=>o.h.pv>0);
   if(!liv.length) return;
-  liv.sort((a,b)=>a.h.pv-b.h.pv); const t=liv[0];
+  liv.sort((a,b)=>a.h.pv-b.h.pv);
+  const taunters=liv.filter(o=>perkSum(o.h,'taunt')>0);
+  const t=taunters.length?taunters[0]:liv[0];
   let d=computeDmg(m.atk,heroStats(t.h).def,m.magic);
   const lost=applyHeroDamage(t.h,t.hi,d); clog(`${m.nom} blesse ${t.h.nom} · ${lost}`);
+  const th=perkSum(t.h,'thorns'); if(th>0 && lost>0 && m.pv>0){ const r=Math.max(1,Math.round(lost*th)); m.pv=Math.max(0,m.pv-r); fx('mon-'+i,'-'+r,'dmg'); }
   if(m.tmpl==='veuve' && t.h.pv>0) t.h.poison={dmg:Math.round(m.atk*0.4),turns:3};
   if(m.elite==='vorace' && lost>0){ const steal=Math.round(lost*0.5); m.pv=Math.min(m.pvMax,m.pv+steal); fx('mon-'+i,'+'+steal,'heal'); }
 }
@@ -1048,7 +1065,7 @@ function tickStatuses(){
   if(g.buffAtk){ g.buffAtk.turns--; if(g.buffAtk.turns<=0) g.buffAtk=null; }
   if(hasRelic('regen_meute')) g.team.forEach((h,hi)=>{ if(h.pv>0){ const tm=heroStats(h).pvMax; if(h.pv<tm){ h.pv=Math.min(tm,h.pv+4); fx('hero-'+hi,'+4','heal'); } } });
   const sg=g.team.find(h=>h.pv>0 && CLASSES[h.cls].pid==='grace');
-  if(sg){ const t=lowestAlly(); if(t){ const tm=heroStats(t.x).pvMax; if(t.x.pv<tm){ const heal=Math.round(heroStats(sg).atk*0.6); t.x.pv=Math.min(tm,t.x.pv+heal); if(heal>0) fx('hero-'+t.i,'+'+heal,'heal'); } } }
+  if(sg){ const t=lowestAlly(); if(t){ const tm=heroStats(t.x).pvMax; if(t.x.pv<tm){ const heal=Math.round(heroStats(sg).atk*0.6*(1+perkSum(sg,'healPct')/100)); t.x.pv=Math.min(tm,t.x.pv+heal); if(heal>0) fx('hero-'+t.i,'+'+heal,'heal'); } } }
 }
 function enemyPhase(){
   ui._fx=[];
@@ -1194,7 +1211,7 @@ function shopPrice(rar){ let base=[10,20,34,56][RARITIES.indexOf(rar)];
   const disc=metaMods().shopDisc; if(disc) base=Math.max(1,Math.ceil(base*(1-disc))); return base; }
 function openShop(depth){
   const stock=[]; for(let k=0;k<3;k++){ const rar=rollRarity(depth+1,false); stock.push({it:genGear(rar,depth+1), cost:shopPrice(rar), sold:false}); }
-  g.shop={depth, stock, potionCost:Math.max(3,Math.ceil(7*(1-(metaMods().shopDisc||0))))}; ui.screen='shop'; render();
+  g.shop={depth, stock, potionCost:Math.max(3,Math.ceil(7*(1-(metaMods().shopDisc||0)))), relicCost:Math.max(40,Math.ceil(75*(1-(metaMods().shopDisc||0))))}; ui.screen='shop'; render();
 }
 function buyGear(k){ const s=g.shop.stock[k]; if(!s||s.sold||(g.inv.gold||0)<s.cost) return; g.inv.gold-=s.cost; g.inv.gear.push(s.it); s.sold=true; toast(`Acheté : ${gearName(s.it)}.`); render(); }
 function buyPotion(){ if((g.inv.gold||0)<g.shop.potionCost) return; g.inv.gold-=g.shop.potionCost; g.inv.potions++; toast('Potion achetée.'); render(); }
@@ -1249,13 +1266,13 @@ function estPhysMagic(atk,def,magic,pen){ const f=magic?(pen?0.1:0.25):0.6; retu
 function globalDmgMult(m){ let mult=1; if(hasRelic('braise_eternelle')) mult*=1.15; const p=metaMods().dmgPct; if(p) mult*=(1+p/100); if(m&&m.vuln>0) mult*=1.3; return mult; }
 function previewSkill(h,sk,baseLvl){
   const lvl=baseLvl+(hasRelic('talisman_du_traqueur')?1:0)+(metaMods().skillLvl?1:0); const lm=1+0.35*(lvl-1);
-  const atk=heroAtk(h); const pen=(h.cls==='mage');
+  const atk=heroAtk(h); const pen=(h.cls==='mage'); const hm=1+perkSum(h,'healPct')/100;
   const tgt=(g.mons[ui.target]&&g.mons[ui.target].pv>0)?g.mons[ui.target]:g.mons[firstLivingMon()];
   switch(sk.kind){
     case 'st_dmg':{ if(!tgt) return null; let d=Math.round(atk*sk.mult*lm); if(!sk.ignoreDef) d=Math.max(1,d-Math.floor(tgt.def*(sk.magic?0.25:0.5))); return {t:'~'+Math.round(d*globalDmgMult(tgt))}; }
     case 'aoe_dmg':{ if(!tgt) return null; let d=Math.round(atk*sk.mult*lm); d=Math.max(1,d-Math.floor(tgt.def*(sk.magic?(pen?0.1:0.25):0.5))); return {t:'~'+Math.round(d*globalDmgMult(tgt))+' ×tous'}; }
-    case 'heal': return {t:'+'+Math.round(atk*sk.mult*lm),c:'heal'};
-    case 'heal_all': return {t:'+'+Math.round(atk*sk.mult*lm)+' ×tous',c:'heal'};
+    case 'heal': return {t:'+'+Math.round(atk*sk.mult*lm*hm),c:'heal'};
+    case 'heal_all': return {t:'+'+Math.round(atk*sk.mult*lm*hm)+' ×tous',c:'heal'};
     case 'buff_atk': return {t:`+${Math.round(sk.pct*100)}% ATQ`,c:'heal'};
     case 'dot_all': return {t:Math.round(atk*0.5*lm)+'/t ×'+sk.turns};
     case 'dot_st': return {t:Math.round(atk*0.6*lm)+'/t'};
@@ -1351,7 +1368,7 @@ function viewTitle(){
     <details class="how"><summary>Comment jouer</summary><div>
       <b>Combat au tour par tour.</b> Chaque chasseur agit une fois par round : <b>Attaque</b>, ses <b>compétences</b> (avec un délai de recharge), ou une <b>potion</b>. Touche un monstre pour le cibler.<br><br>
       <b>La carte.</b> Trace ta route jusqu’au <b>Béhémoth</b> en choisissant tes étapes : <b>Combat</b>, <b>Élite</b> (plus dur, meilleur butin), <b>Marché</b> (achète et revends), <b>Mystère</b> (rencontres à choix), <b>Repos</b> (feu de camp) et <b>Trésor</b>. La voie ne se remonte pas — chaque choix compte.<br><br>
-      <b>Passifs & talents.</b> Chacun a un passif permanent et deux compétences — la seconde se débloque au camp, onglet <b>Talents</b>, avec de l’Essence et des Os.<br><br>
+      <b>Passifs, talents & spécialisations.</b> Chacun a un passif permanent et deux compétences (la 2ᵉ se débloque au camp). L’onglet <b>Talents</b> permet aussi d’apprendre une <b>spécialisation</b> par chasseur — dégâts, critique, soins renforcés, bouclier, provocation, représailles… — qui transforme son rôle. Dans le <b>Sac</b>, clique un équipement pour l’équiper d’un coup sur le chasseur idéal.<br><br>
       <b>Le camp</b> (accessible depuis la carte) sert à équiper le <b>butin</b>, fabriquer à l’<b>Atelier</b>, améliorer les <b>compétences</b> et ranimer les blessés. Les PV ne remontent pas seuls : compte sur les <b>Repos</b>, les potions, la Soigneuse et certaines rencontres.<br><br>
       <b>Élites & dangers.</b> Un monstre d’<b>élite</b> (enragé, blindé, véloce ou vorace) garde un butin supérieur. Méfie-toi des <b>Pustules</b> qui explosent en mourant et des <b>Veuves</b> qui empoisonnent. L’équipement rare peut porter une <b>propriété</b> (vol de vie, critique, recharge accélérée).<br><br>
 <b>Lis le terrain.</b> Sur chaque monstre, l’<b>intention</b> (⚔ dégâts, ✚ soin, ▲ rage, ✸ zone) annonce son prochain coup ; sous tes actions, l’aperçu <span class="k">~chiffre</span> indique les dégâts ou soins attendus.<br><br>
@@ -1469,7 +1486,7 @@ function viewCamp(){
     ${resourceStrip()}
     <div class="tabs">
       <button class="tab ${ui.tab==='equipe'?'on':''}" data-tab="equipe">Équipe</button>
-      <button class="tab ${ui.tab==='talents'?'on':''}" data-tab="talents">Talents</button>
+      <button class="tab ${ui.tab==='talents'?'on':''}" data-tab="talents">Talents${talentsHot()?' <span class="hot">●</span>':''}</button>
       <button class="tab ${ui.tab==='forge'?'on':''}" data-tab="forge">Forge</button>
       <button class="tab ${ui.tab==='sac'?'on':''}" data-tab="sac">Sac</button>
     </div>
@@ -1495,18 +1512,59 @@ function campEquipe(){
       <div class="hc-flavor">${c.desc}</div>
       <div class="hc-stats"><span>♥ ${Math.max(0,h.pv)}/${st.pvMax}</span><span>⚔ ${st.atk}</span><span>⛨ ${st.def}</span><span>⚡ ${st.vit}</span></div>
       <div class="passive"><span class="ps-tag">PASSIF</span> <b>${c.passive.nom}</b> — ${c.passive.desc}</div>
+      ${perkTags(h)}
       <div class="slots">${slots}</div>
       ${reviveBtn}
     </div>`;
   }).join('');
   return cards;
 }
+const PERKS={
+  guerriere:[
+    {id:'forteresse',nom:'Forteresse',desc:'+20% PV max et +3 Défense.',cost:{os:3,fer:2},eff:{hpPct:20,defFlat:3}},
+    {id:'represailles',nom:'Représailles',desc:'Renvoie 30% des dégâts subis à l’attaquant.',cost:{fer:3,os:2},eff:{thorns:0.3}},
+    {id:'provocation',nom:'Provocation',desc:'Les ennemis la prennent pour cible en priorité — elle protège la meute.',cost:{cuir:3,os:2},eff:{taunt:1}},
+  ],
+  archere:[
+    {id:'precision_m',nom:'Précision mortelle',desc:'+15% de dégâts.',cost:{croc:3,fer:2},eff:{dmgPct:15}},
+    {id:'tir_critique',nom:'Tir critique',desc:'+15% de chances de coup critique.',cost:{croc:3,essence:1},eff:{crit:0.15}},
+    {id:'carquois_vif',nom:'Carquois vif',desc:'Recharges de compétences −1.',cost:{essence:2,os:2},eff:{cd:1}},
+  ],
+  mage:[
+    {id:'pyromancie',nom:'Pyromancie',desc:'+18% de dégâts.',cost:{essence:3,fer:1},eff:{dmgPct:18}},
+    {id:'mana_vive',nom:'Mana vive',desc:'Recharges de compétences −1.',cost:{essence:3,os:1},eff:{cd:1}},
+    {id:'bouclier_arc',nom:'Bouclier arcanique',desc:'Commence chaque combat avec 18 de bouclier.',cost:{essence:2,os:2},eff:{shield:18}},
+  ],
+  soigneur:[
+    {id:'grand_soin',nom:'Grand soin',desc:'+30% à tous les soins prodigués.',cost:{herbe:3,essence:2},eff:{healPct:30}},
+    {id:'egide_sacree',nom:'Égide sacrée',desc:'Toute l’escouade commence chaque combat avec 10 de bouclier.',cost:{essence:2,os:2},eff:{shieldAll:10}},
+    {id:'resilience',nom:'Résilience',desc:'+20% PV max.',cost:{os:3,cuir:2},eff:{hpPct:20}},
+  ],
+  roublard:[
+    {id:'assassin',nom:'Assassin',desc:'+18% de chances de coup critique.',cost:{croc:3,os:2},eff:{crit:0.18}},
+    {id:'saignee',nom:'Saignée',desc:'Ses attaques le soignent de 20% des dégâts infligés.',cost:{croc:3,essence:1},eff:{lifesteal:0.2}},
+    {id:'lame_rapide',nom:'Lame rapide',desc:'Recharges de compétences −1.',cost:{essence:2,os:2},eff:{cd:1}},
+  ],
+};
+function perkSum(h,key){ let s=0; const arr=PERKS[h.cls]||[]; (h.perks||[]).forEach(id=>{ const p=arr.find(x=>x.id===id); if(p&&p.eff&&p.eff[key]) s+=p.eff[key]; }); return s; }
+function buyPerk(i,id){ const h=g.team[i]; if(!h.perks) h.perks=[]; if(h.perks.includes(id)) return; const p=(PERKS[h.cls]||[]).find(x=>x.id===id); if(!p||!canAfford(p.cost)) return; spend(p.cost); h.perks.push(id); toast(`${h.nom} maîtrise « ${p.nom} » !`); render(); }
+function equipBest(id){ const it=g.inv.gear.find(x=>x.id===id); if(!it) return; equip(id, bestHeroIdx(it)); }
+function perkBlock(i){ const h=g.team[i]; const arr=PERKS[h.cls]||[]; if(!arr.length) return '';
+  const rows=arr.map(p=>{ const owned=(h.perks||[]).includes(p.id); const can=!owned&&canAfford(p.cost);
+    const btn=owned?`<span class="maxed">acquis</span>`:`<button class="mini" data-perk="${i}:${p.id}" ${can?'':'disabled'}>Apprendre · ${costStr(p.cost)}</button>`;
+    return `<div class="tk ${owned?'owned-perk':'locked'}"><div class="tk-h"><span class="tk-name">${p.nom}</span>${owned?'<span class="tk-lv">✓ actif</span>':''}</div><div class="tk-desc">${p.desc}</div>${btn}</div>`; }).join('');
+  return `<div class="tk-spec"><div class="rb-h" style="margin:10px 0 6px;">Spécialisation — choisis ta voie</div>${rows}</div>`;
+}
+function perkTags(h){ const arr=PERKS[h.cls]||[]; const owned=(h.perks||[]).filter(id=>arr.find(x=>x.id===id));
+  if(!owned.length) return `<div class="hc-skill"><span style="color:var(--faint);font-size:11.5px;">Aucune spécialisation — vois l’onglet <b style="color:var(--ember)">Talents</b></span></div>`;
+  return `<div class="hc-skill"><span style="display:flex;gap:5px;flex-wrap:wrap;">${owned.map(id=>{ const p=arr.find(x=>x.id===id); return `<span class="prop" title="${p.desc}">★ ${p.nom}</span>`; }).join('')}</span></div>`; }
+function talentsHot(){ return (g.team||[]).some((h,i)=>{ if(h.skillLvl<3&&canAfford(skillUpCost(h.skillLvl)))return true; if(!h.skillBunlocked&&canAfford(SKILLB_COST))return true; if(h.skillBunlocked&&h.skillBLvl<3&&canAfford(skillUpCost(h.skillBLvl)))return true; const arr=PERKS[h.cls]||[]; return arr.some(p=>!(h.perks||[]).includes(p.id)&&canAfford(p.cost)); }); }
 function talentBlock(label, name, desc, lvl, upBtn){
   return `<div class="tk"><div class="tk-h"><span class="tk-name">${name}</span><span class="tk-lv">${label}${lvl?` · niv.${lvl}`:''}</span></div>
     <div class="tk-desc">${desc}</div>${upBtn||''}</div>`;
 }
 function campTalents(){
-  return `<div class="hintbox">Chaque chasseur possède un <b>passif</b> permanent, une compétence de base et une <b>seconde compétence</b> à débloquer. Améliore-les avec de l’Essence et des Os.</div>` +
+  return `<div class="hintbox">Le cœur de ta meute. Monte tes <b>compétences</b> (niv. 3 max, plus puissantes et recharge plus courte), débloque la <b>2ᵉ compétence</b>, et surtout apprends une <b>spécialisation</b> par chasseur : un bonus permanent qui change sa façon de combattre.</div>` +
   g.team.map((h,i)=>{
     const c=CLASSES[h.cls];
     const upA=skillUpCost(h.skillLvl), canA=h.skillLvl<3&&canAfford(upA);
@@ -1526,6 +1584,7 @@ function campTalents(){
       <div class="passive"><span class="ps-tag">PASSIF</span> <b>${c.passive.nom}</b> — ${c.passive.desc}</div>
       ${talentBlock('Compétence 1', c.skill.nom, c.skill.desc, h.skillLvl, aBtn)}
       ${bBlock}
+      ${perkBlock(i)}
     </div>`;
   }).join('');
 }
@@ -1534,14 +1593,14 @@ function campSac(){
   if(!g.inv.gear.length){ gearList=`<div class="empty-box">Aucun équipement en réserve. Abats des monstres ou fabrique-en à l’Atelier.</div>`; }
   else {
     gearList=g.inv.gear.map(it=>`<div class="gear-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
-      <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${gearName(it)}</div>
-        <div class="gr-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div><div class="gr-delta">${deltaVerdict(it)}</div></div>
+      <button class="gr-main gr-click" data-equipbest="${it.id}" title="Équiper automatiquement sur ${optimName(it)}"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${gearName(it)} <span class="gr-go">▸ équiper</span></div>
+        <div class="gr-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div><div class="gr-delta">${deltaVerdict(it)}</div></button>
       <div class="gr-equip">${g.team.map((h,i)=>`<button class="eq" data-equip="${it.id}:${i}" title="Équiper sur ${h.nom} · ${slotDelta(it,h).arrow}">${shortName(h.nom)}</button>`).join('')}</div>
     </div>`).join('');
   }
   const mats=MATS.map(m=>`<span class="chip">${MAT_LABEL[m]} ·${g.inv.mats[m]||0}</span>`).join('');
   return `<div class="res-block"><div class="rb-h">Matériaux</div><div class="chips">${mats}<span class="chip">Potion ·${g.inv.potions}</span></div></div>
-          <div class="res-block"><div class="rb-h">Équipement en réserve · ${g.inv.gear.length}</div>${gearList}</div>`;
+          <div class="res-block"><div class="rb-h">Équipement en réserve · ${g.inv.gear.length}</div><div class="hintbox" style="margin-bottom:10px;">Clique un équipement pour l’<b>équiper d’un coup</b> sur le chasseur idéal, ou choisis une cible précise avec les pastilles à droite.</div>${gearList}</div>`;
 }
 function atelierCost(cost){ return Object.keys(cost).map(k=>{ const have=g.inv.mats[k]||0, need=cost[k];
   return `<span class="rc-mat ${have>=need?'ok':'no'}">${MAT_LABEL[k]} ${have}/${need}</span>`; }).join(''); }
@@ -1635,8 +1694,11 @@ function viewShop(){
     <div class="shop-row"><div class="gr-main"><div class="gr-name">Potion de soin</div><div class="gr-meta">restaure 50% des PV en combat</div></div><button class="mini" id="buy-potion" ${(g.inv.gold||0)>=g.shop.potionCost?'':'disabled'}>${g.shop.potionCost} ⊙</button></div>
     <div class="rb-h shop-sell-h">Revendre ton équipement</div>${sell}
     <div class="rb-h shop-sell-h">Forge — renforcer un équipement</div>${forge}
+    ${relicsLeft()?`<div class="rb-h shop-sell-h">Artefact du colporteur</div>
+    <div class="shop-row" style="border-left-color:var(--gold)"><div class="gr-main"><div class="gr-name" style="color:var(--gold)">Relique scellée</div><div class="gr-meta">artefact permanent aléatoire — un atout majeur</div></div><button class="mini" id="buy-relic" ${(g.inv.gold||0)>=g.shop.relicCost?'':'disabled'}>${g.shop.relicCost} ⊙</button></div>`:''}
     <button class="cta sticky-cta" id="shop-leave">Quitter le marché ▸</button>`;
 }
+function buyRelicShop(){ if(!relicsLeft()||(g.inv.gold||0)<g.shop.relicCost) return; g.inv.gold-=g.shop.relicCost; const r=eGiveRelic(); toast('Relique acquise : '+r); render(); }
 function viewLair(){
   const branches=META_TREE.map(br=>{
     const lvl=metaLvl(br.id); const maxed=lvl>=br.nodes.length;
@@ -1739,6 +1801,7 @@ function bind(){
     bindEach('[data-sell]',el=>sellGear(+el.dataset.sell));
     bindEach('[data-upg]',el=>upgradeGear(+el.dataset.upg));
     const bp=$('buy-potion'); if(bp) bp.onclick=()=>buyPotion();
+    const br=$('buy-relic'); if(br) br.onclick=()=>buyRelicShop();
     const lv=$('shop-leave'); if(lv) lv.onclick=()=>completeNode();
   }
   else if(ui.screen==='combat'){
@@ -1756,6 +1819,8 @@ function bind(){
     bindEach('[data-revive]',el=>revive(+el.dataset.revive));
     bindEach('[data-craft]',el=>craft(el.dataset.craft));
     bindEach('[data-upg]',el=>upgradeGear(+el.dataset.upg));
+    bindEach('[data-equipbest]',el=>equipBest(+el.dataset.equipbest));
+    bindEach('[data-perk]',el=>{ const [i,id]=el.dataset.perk.split(':'); buyPerk(+i,id); });
   }
   else if(ui.screen==='lair'){
     bindEach('[data-buy]',el=>buyMeta(el.dataset.buy));
