@@ -521,6 +521,59 @@ button.unit:hover:not(:disabled){border-color:var(--line2);}
 .lore-strip svg.emb{width:26px;height:26px;color:var(--faint);opacity:.62;transition:.2s;}
 .lore-strip svg.emb.boss{color:var(--blood);opacity:.8;}
 .lore-strip:hover svg.emb{opacity:.85;}
+
+/* ====== UI/UX PASS : mobile, sticky actions, icônes ====== */
+.depthbar{height:4px;border-radius:3px;background:rgba(232,221,201,.08);overflow:hidden;margin:-4px 0 12px;}
+.depthbar i{display:block;height:100%;background:linear-gradient(90deg,var(--ember),#ffc07a);border-radius:3px;transition:width .4s ease;}
+/* sticky combat action bar so the menu is always reachable without scrolling */
+.turnbar{position:sticky;bottom:max(8px,env(safe-area-inset-bottom));z-index:9;
+  border:1px solid var(--line2);background:rgba(26,23,20,.97);
+  box-shadow:0 -2px 0 rgba(0,0,0,.25),0 14px 34px rgba(0,0,0,.62);}
+.act{min-height:62px;}
+.act .act-ic{display:flex;justify-content:center;}
+.act .aic{width:18px;height:18px;opacity:.8;}
+.act:hover:not(:disabled) .aic{opacity:1;}
+.act:disabled .aic{opacity:.4;}
+/* icon camp tabs — bigger, app-like nav */
+.camptabs{gap:2px;}
+.camptabs .tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px 8px;}
+.camptabs .tab-ic{display:flex;color:var(--faint);transition:.14s;}
+.camptabs .tab.on .tab-ic{color:var(--ember);}
+.camptabs .tab:hover .tab-ic{color:var(--ink);}
+.tab-svg{width:19px;height:19px;}
+.tab-l{font-size:12px;letter-spacing:.02em;}
+/* comfortable tap targets */
+.mini,.eq{min-height:36px;}
+.cta,.btn2{min-height:48px;}
+@media (max-width:480px){
+  body{font-size:14.5px;}
+  .wrap{padding-left:max(env(safe-area-inset-left),12px);padding-right:max(env(safe-area-inset-right),12px);}
+  h1{font-size:25px;letter-spacing:.12em;}
+  .portrait{height:38px;margin-bottom:4px;} .portrait .emb{width:30px;height:30px;}
+  .portrait::before{width:38px;height:38px;}
+  .unit{padding:8px 9px;border-radius:8px;} .unit.mon{padding-top:22px;}
+  .unit .u-name{font-size:12.5px;}
+  .row{gap:6px;} .sect-label{margin:9px 0 5px;}
+  .intent{font-size:10px;padding:1px 6px;}
+  .actions{gap:6px;}
+  .act{min-height:56px;padding:8px 3px;}
+  .act .act-n{font-size:12px;line-height:1.1;}
+  .act .aic{width:16px;height:16px;}
+  .clog{margin-top:8px;font-size:11px;}
+  .turnbar{padding:10px 9px;border-radius:12px;}
+  .tabs{font-size:12px;}
+  .camptabs .tab{padding:8px 2px 7px;}
+  .tab-l{font-size:11px;}
+  .hcard,.tcard,.gear-row,.forge-row,.shop-row{padding:10px 11px;}
+  .cta,.btn2{min-height:50px;font-size:15px;}
+  .mini,.eq{min-height:38px;}
+  .map-hint,.enc-text{font-size:13px;}
+  .mrow{height:52px;}
+}
+@media (max-width:360px){
+  .act .act-n{font-size:11px;}
+  .pick-name{font-size:15px;}
+}
 </style>
 </head>
 <body>
@@ -1393,6 +1446,15 @@ function matIcon(m){ return svgIcon(MAT_SVG[m]||'', '', 'color:'+(MAT_TINT[m]||'
 function slotIcon(sl){ return svgIcon(SLOT_SVG[sl]||'', 'gname-ic'); }
 function goldIcon(){ return svgIcon('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.6"/><path d="M12 9.4 V14.6 M10.6 10.6 H13.2"/>','','color:var(--gold)'); }
 function potionIcon(){ return svgIcon('<path d="M10 3 H14"/><path d="M11 3 V6 L8 11 V18 Q8 20 10 20 H14 Q16 20 16 18 V11 L13 6 V3"/><path d="M8.4 13 H15.6"/>','','color:var(--heal)'); }
+const TAB_SVG={
+  equipe:'<path d="M6 6 L9 4 Q12 6 15 4 L18 6 L17 11 Q17 18 12 20.5 Q7 18 7 11 Z"/><path d="M12 6 V20"/>',
+  talents:'<path d="M12 3 L14 9 L20 9 L15 13 L17 20 L12 16 L7 20 L9 13 L4 9 L10 9 Z"/>',
+  forge:'<path d="M3 9 H13 Q13 12.5 9.5 12.5 H9 V15 H14 L13 18 H6 L7 15 H5 V12.5 Q3 12 3 9 Z"/><path d="M14 9 H18 L20.5 6.5"/>',
+  sac:'<path d="M7.5 8 V6 Q7.5 3.5 12 3.5 Q16.5 3.5 16.5 6 V8"/><path d="M5 8 H19 L18 20 H6 Z"/>',
+};
+function tabIc(k){ return svgIcon(TAB_SVG[k]||'', 'tab-svg'); }
+function actIc(k){ const spark='<path d="M12 3 L13.6 9.2 L20 11 L13.6 12.8 L12 19 L10.4 12.8 L4 11 L10.4 9.2 Z" fill="currentColor" stroke="none"/>'; const pot='<path d="M10 3 H14"/><path d="M11 3 V6 L8 11 V18 Q8 20 10 20 H14 Q16 20 16 18 V11 L13 6 V3"/><path d="M8.4 13 H15.6"/>'; const m={attaque:SLOT_SVG.arme, skill:spark, potion:pot}; return svgIcon(m[k]||'', 'aic'); }
+function depthBar(d){ const p=Math.max(4,Math.min(100,Math.round(d/10*100))); return `<div class="depthbar" title="Profondeur ${d}/10"><i style="width:${p}%"></i></div>`; }
 function monGlyph(m){ return emb(SIG.mon[m.boss?'boss':m.tmpl]||SIG.mon._); }
 function heroGlyph(cls){ return emb(SIG.hero[cls]||SIG.hero._); }
 function nodeSvg(t){ return emb(SIG.node[t]||SIG.node.combat); }
@@ -1501,23 +1563,24 @@ function viewCombat(){
     actions=`<div class="turnbar">
       <div class="turnwho">Au tour de <b>${h.nom}</b>${buffNote}</div>
       <div class="actions">
-        <button class="act" data-act="attaque"><span class="act-n">Attaque</span>${pa('attaque')}</button>
-        <button class="act" data-act="skillA" ${h.cdA>0?'disabled':''}><span class="act-n">${c.skill.nom}${h.cdA>0?` ⟳${h.cdA}`:''}</span>${h.cdA>0?'':pa('skillA')}</button>
-        ${h.skillBunlocked?`<button class="act" data-act="skillB" ${h.cdB>0?'disabled':''}><span class="act-n">${c.skillB.nom}${h.cdB>0?` ⟳${h.cdB}`:''}</span>${h.cdB>0?'':pa('skillB')}</button>`:''}
-        <button class="act" data-act="potion" ${g.inv.potions<=0?'disabled':''}><span class="act-n">Potion${g.inv.potions>0?` ·${g.inv.potions}`:''}</span>${g.inv.potions>0?pa('potion'):''}</button>
+        <button class="act" data-act="attaque"><span class="act-ic">${actIc('attaque')}</span><span class="act-n">Attaque</span>${pa('attaque')}</button>
+        <button class="act" data-act="skillA" ${h.cdA>0?'disabled':''}><span class="act-ic">${actIc('skill')}</span><span class="act-n">${c.skill.nom}${h.cdA>0?` ⟳${h.cdA}`:''}</span>${h.cdA>0?'':pa('skillA')}</button>
+        ${h.skillBunlocked?`<button class="act" data-act="skillB" ${h.cdB>0?'disabled':''}><span class="act-ic">${actIc('skill')}</span><span class="act-n">${c.skillB.nom}${h.cdB>0?` ⟳${h.cdB}`:''}</span>${h.cdB>0?'':pa('skillB')}</button>`:''}
+        <button class="act" data-act="potion" ${g.inv.potions<=0?'disabled':''}><span class="act-ic">${actIc('potion')}</span><span class="act-n">Potion${g.inv.potions>0?` ·${g.inv.potions}`:''}</span>${g.inv.potions>0?pa('potion'):''}</button>
       </div>
       <div class="who-gear"><span class="wg-stats">♥${Math.max(0,h.pv)}/${_st.pvMax} ⚔${_st.atk} ⛨${_st.def} ⚡${_st.vit}</span> · <span class="wg-load">${load}</span></div>
       ${livMons>1?`<div class="hint">Cible : ${g.mons[ui.target]?g.mons[ui.target].nom:'—'} — touche un monstre pour changer.</div>`:''}
     </div>`;
   }
   return `${topBar(`Profondeur ${g.depth} / 10`)}
+    ${depthBar(g.depth)}
     ${relicBar()}
     <div class="sect-label">Monstres</div>
     <div class="row mons">${monRow}</div>
     <div class="sect-label">Escouade</div>
     <div class="row heroes">${heroRow}</div>
-    ${actions}
-    <div class="clog">${g.log.slice(0,3).map(l=>`<div>${l}</div>`).join('')}</div>`;
+    <div class="clog">${g.log.slice(0,3).map(l=>`<div>${l}</div>`).join('')}</div>
+    ${actions}`;
 }
 function resourceStrip(){
   const mats=MATS.map(m=>`<span class="chip">${matIcon(m)} ${MAT_LABEL[m]} ·${g.inv.mats[m]||0}</span>`).join('');
@@ -1526,11 +1589,11 @@ function resourceStrip(){
 function viewCamp(){
   return `${topBar('Camp')}
     ${resourceStrip()}
-    <div class="tabs">
-      <button class="tab ${ui.tab==='equipe'?'on':''}" data-tab="equipe">Équipe</button>
-      <button class="tab ${ui.tab==='talents'?'on':''}" data-tab="talents">Talents${talentsHot()?' <span class="hot">●</span>':''}</button>
-      <button class="tab ${ui.tab==='forge'?'on':''}" data-tab="forge">Forge</button>
-      <button class="tab ${ui.tab==='sac'?'on':''}" data-tab="sac">Sac</button>
+    <div class="tabs camptabs">
+      <button class="tab ${ui.tab==='equipe'?'on':''}" data-tab="equipe"><span class="tab-ic">${tabIc('equipe')}</span><span class="tab-l">Équipe</span></button>
+      <button class="tab ${ui.tab==='talents'?'on':''}" data-tab="talents"><span class="tab-ic">${tabIc('talents')}</span><span class="tab-l">Talents${talentsHot()?' <span class="hot">●</span>':''}</span></button>
+      <button class="tab ${ui.tab==='forge'?'on':''}" data-tab="forge"><span class="tab-ic">${tabIc('forge')}</span><span class="tab-l">Forge</span></button>
+      <button class="tab ${ui.tab==='sac'?'on':''}" data-tab="sac"><span class="tab-ic">${tabIc('sac')}</span><span class="tab-l">Sac</span></button>
     </div>
     <div class="tabbody">${ui.tab==='equipe'?campEquipe():ui.tab==='talents'?campTalents():ui.tab==='forge'?campForge():campSac()}</div>
     <button class="cta sticky-cta" id="map-back">◂ Retour à la carte</button>`;
