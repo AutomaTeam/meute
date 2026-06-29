@@ -621,6 +621,23 @@ button.unit:hover:not(:disabled){border-color:var(--line2);}
 .portrait::before{width:50px;height:50px;border:1px solid rgba(232,221,201,.12);box-shadow:inset 0 0 12px rgba(0,0,0,.55);}
 @media (max-width:380px){ .cx-portrait{flex-basis:60px;width:60px;height:60px;} }
 
+/* ===== CAMP — cohérence visuelle ===== */
+.hc-head{display:flex;align-items:center;gap:12px;margin-bottom:9px;}
+.hc-port{flex:0 0 56px;width:56px;height:56px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.5));}
+.hc-port.sm{flex:0 0 48px;width:48px;height:48px;}
+.hc-id{flex:1;min-width:0;}
+.hc-id .hc-stats{margin:7px 0 0;}
+.gr-med,.rc-med{flex:0 0 44px;width:44px;height:44px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45));}
+.hcard,.tcard{background:linear-gradient(180deg,var(--bg3),var(--bg2));border-radius:12px;border-left:3px solid var(--line2);}
+.gear-row,.forge-row,.recipe,.shop-row{background:linear-gradient(180deg,var(--bg3),var(--bg2));}
+.recipe{align-items:center;}
+.hcard.cls-guerriere,.tcard.cls-guerriere{border-left-color:var(--steel);}
+.hcard.cls-archere,.tcard.cls-archere{border-left-color:var(--ember);}
+.hcard.cls-mage,.tcard.cls-mage{border-left-color:var(--amethyst);}
+.hcard.cls-soigneur,.tcard.cls-soigneur{border-left-color:var(--heal);}
+.hcard.cls-roublard,.tcard.cls-roublard{border-left-color:var(--gold);}
+@media (max-width:380px){ .hc-port{flex-basis:48px;width:48px;height:48px;} .gr-med,.rc-med{flex-basis:38px;width:38px;height:38px;} }
+
 /* ===== VFX & POLISH ===== */
 #flash{position:fixed;inset:0;z-index:58;pointer-events:none;opacity:0;transition:opacity .4s ease;mix-blend-mode:screen;}
 .vfx-p{position:absolute;border-radius:50%;pointer-events:none;transform:translate(0,0) scale(1);opacity:1;transition:transform .55s cubic-bezier(.2,.7,.3,1),opacity .55s ease;}
@@ -670,6 +687,7 @@ const WAVES=50;
 const BOSS_WAVE=WAVES;
 const RARITIES=['commun','rare','épique','légendaire'];
 const RAR_COLOR={commun:'var(--dim)',rare:'var(--steel)','épique':'var(--amethyst)','légendaire':'var(--gold)'};
+const RAR_HEX={commun:'#a59c89',rare:'#6f9bc4','épique':'#a982cf','légendaire':'#d9b25b'};
 
 const MATS=['cuir','croc','os','fer','essence','herbe'];
 const MAT_LABEL={cuir:'Cuir',croc:'Croc',os:'Os',fer:'Fer',essence:'Essence',herbe:'Herbe'};
@@ -1494,7 +1512,8 @@ function forgeRows(list){ return list.map(o=>{ const it=o.it; const max=(it.plus
   const prev=max?'':`<div class="fg-prev">→ ${upgradePreview(it)}</div>`;
   const btn=max?`<span class="maxplus">+${MAX_PLUS} max</span>`:`<button class="mini" data-upg="${it.id}" ${(g.inv.gold||0)>=cost?'':'disabled'}>Renforcer · ${cost} ⊙</button>`;
   return `<div class="forge-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
-    <div class="fg-main"><div class="fg-name" style="color:${RAR_COLOR[it.rarity]}">${slotIcon(it.slot)} ${gearName(it)} <span class="fg-where">· ${o.where}</span></div>
+    <div class="rc-med">${gearMedallion(it)}</div>
+    <div class="fg-main"><div class="fg-name" style="color:${RAR_COLOR[it.rarity]}">${gearName(it)} <span class="fg-where">· ${o.where}</span></div>
       <div class="fg-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div>${prev}</div>
     ${btn}</div>`; }).join(''); }
 function allGearList(){ const list=[]; g.team.forEach((h,i)=>['arme','armure','talisman'].forEach(sl=>{ if(h.gear[sl]) list.push({it:h.gear[sl],where:h.nom}); })); g.inv.gear.forEach(it=>list.push({it,where:'Sac'})); return list; }
@@ -1588,6 +1607,7 @@ let _imc=0;
 function iconMedallion(inner,color){ const gid='im'+(_imc++); return `<svg class="bigpix" viewBox="0 0 100 100" aria-hidden="true"><defs><radialGradient id="${gid}" cx="50%" cy="36%" r="72%"><stop offset="0%" stop-color="${color}" stop-opacity=".5"/><stop offset="60%" stop-color="#1a1714"/><stop offset="100%" stop-color="#0b0a08"/></radialGradient></defs><circle cx="50" cy="50" r="46" fill="url(#${gid})" stroke="rgba(232,221,201,.14)"/><g transform="translate(50,50) scale(2.5) translate(-12,-12)" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:${color}">${inner}</g></svg>`; }
 function matMedallion(m){ return iconMedallion(MAT_SVG[m]||'', MAT_TINT[m]||'#e8ddc8'); }
 function slotMedallion(sl){ return iconMedallion(SLOT_SVG[sl]||'', '#e0913f'); }
+function gearMedallion(it){ return iconMedallion(SLOT_SVG[it.slot]||'', RAR_HEX[it.rarity]||'#a59c89'); }
 const MAT_LORE={ cuir:'Peau tannée des bêtes abattues — souple et tenace, base de toute armure légère.', croc:'Crocs arrachés aux prédateurs ; affûtés, ils mordent encore.', os:'Ossements durcis au feu, charpente des armures lourdes et des fétiches.', fer:'Métal noir des terres mortes, réveillé à la forge en lames tranchantes.', essence:'Brume arcanique condensée — le souffle même de la magie ancienne.', herbe:'Plantes amères des sous-bois, distillées en potions revigorantes.' };
 const SLOT_LORE={ arme:'L’arme décide qui frappe le premier et qui s’effondre. Surtout de l’⚔ Attaque.', armure:'Entre toi et les crocs : chaque plaque compte. ⛨ Défense et ♥ PV.', talisman:'Un fétiche gravé qui plie le sort en ta faveur. Statistiques variées.' };
 function nodeSvg(t){ return emb(SIG.node[t]||SIG.node.combat); }
@@ -1758,10 +1778,12 @@ function campEquipe(){
       return `<div class="slot ${avail.length?'slot-col':''}"><span class="slot-k">${sl}</span>${body}</div>`;
     }).join('');
     const reviveBtn=h.pv<=0?`<button class="mini danger" data-revive="${i}" ${canAfford(REVIVE_COST)?'':'disabled'}>Ranimer · ${costStr(REVIVE_COST)}</button>`:'';
-    return `<div class="hcard ${h.pv<=0?'down':''}">
-      <div class="hc-top"><b>${h.nom}</b><span class="role">${c.role} · niv.${h.lvl}</span></div>
+    return `<div class="hcard cls-${h.cls} ${h.pv<=0?'down':''}">
+      <div class="hc-head"><div class="hc-port">${bigPortrait('hero',h.cls)}</div><div class="hc-id">
+        <div class="hc-top"><b>${h.nom}</b><span class="role">${c.role} · niv.${h.lvl}</span></div>
+        <div class="hc-stats"><span>♥ ${Math.max(0,h.pv)}/${st.pvMax}</span><span>⚔ ${st.atk}</span><span>⛨ ${st.def}</span><span>⚡ ${st.vit}</span></div>
+      </div></div>
       <div class="hc-flavor">${c.desc}</div>
-      <div class="hc-stats"><span>♥ ${Math.max(0,h.pv)}/${st.pvMax}</span><span>⚔ ${st.atk}</span><span>⛨ ${st.def}</span><span>⚡ ${st.vit}</span></div>
       <div class="passive"><span class="ps-tag">PASSIF</span> <b>${c.passive.nom}</b> — ${c.passive.desc}</div>
       ${perkTags(h)}
       <div class="slots">${slots}</div>
@@ -1830,8 +1852,8 @@ function campTalents(){
       const bBtn=h.skillBLvl<3?`<button class="mini" data-upb="${i}" ${canB?'':'disabled'}>Améliorer · ${costStr(upB)}</button>`:`<span class="maxed">max</span>`;
       bBlock=talentBlock('Compétence 2', c.skillB.nom, c.skillB.desc, h.skillBLvl, bBtn);
     }
-    return `<div class="tcard">
-      <div class="tc-top"><b>${h.nom}</b><span class="role">${c.role}</span></div>
+    return `<div class="tcard cls-${h.cls}">
+      <div class="hc-head"><div class="hc-port sm">${bigPortrait('hero',h.cls)}</div><div class="hc-id"><div class="tc-top"><b>${h.nom}</b><span class="role">${c.role} · niv.${h.lvl}</span></div></div></div>
       <div class="passive"><span class="ps-tag">PASSIF</span> <b>${c.passive.nom}</b> — ${c.passive.desc}</div>
       ${talentBlock('Compétence 1', c.skill.nom, c.skill.desc, h.skillLvl, aBtn)}
       ${bBlock}
@@ -1844,7 +1866,8 @@ function campSac(){
   if(!g.inv.gear.length){ gearList=`<div class="empty-box">Aucun équipement en réserve. Abats des monstres ou fabrique-en à l’Atelier.</div>`; }
   else {
     gearList=g.inv.gear.map(it=>`<div class="gear-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
-      <button class="gr-main gr-click" data-equipbest="${it.id}" title="Équiper automatiquement sur ${optimName(it)}"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${slotIcon(it.slot)} ${gearName(it)} <span class="gr-go">▸ équiper</span></div>
+      <div class="gr-med">${gearMedallion(it)}</div>
+      <button class="gr-main gr-click" data-equipbest="${it.id}" title="Équiper automatiquement sur ${optimName(it)}"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${gearName(it)} <span class="gr-go">▸ équiper</span></div>
         <div class="gr-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div><div class="gr-delta">${deltaVerdict(it)}</div></button>
       <div class="gr-equip">${g.team.map((h,i)=>`<button class="eq" data-equip="${it.id}:${i}" title="Équiper sur ${h.nom} · ${slotDelta(it,h).arrow}">${shortName(h.nom)}</button>`).join('')}</div>
     </div>`).join('');
@@ -1858,6 +1881,7 @@ function atelierCost(cost){ return Object.keys(cost).map(k=>{ const have=g.inv.m
 function campAtelier(){
   const rows=RECIPES.map(r=>{ const ok=canAfford(r.cost);
     return `<div class="recipe">
+      <div class="rc-med">${r.kind==='gear'?slotMedallion(r.slot):iconMedallion('<path d=\"M10 3 H14\"/><path d=\"M11 3 V6 L8 11 V18 Q8 20 10 20 H14 Q16 20 16 18 V11 L13 6 V3\"/><path d=\"M8.4 13 H15.6\"/>','#74ad6f')}</div>
       <div class="rc-main"><div class="rc-name">${r.nom}</div>
         <div class="rc-cost">${atelierCost(r.cost)}${r.kind==='gear'?` · <span class="rc-slot">${r.slot} aléatoire</span>`:''}</div></div>
       <button class="mini" data-craft="${r.id}" ${ok?'':'disabled'}>Fabriquer</button>
