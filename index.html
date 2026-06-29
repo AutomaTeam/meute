@@ -474,6 +474,35 @@ button.unit:hover:not(:disabled){border-color:var(--line2);}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001s !important;transition-duration:.05s !important;}
 }
+
+/* ====== AMÉLIORATIONS : aperçu dégâts, deltas, Or, forge ====== */
+.act{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;line-height:1.15;}
+.act .act-n{font-weight:500;}
+.act .act-dmg{font-family:var(--mono);font-size:10.5px;color:var(--faint);font-weight:400;}
+.act:hover:not(:disabled) .act-dmg{color:var(--ember);}
+.act .act-dmg.heal{color:var(--heal);}
+.act:hover:not(:disabled) .act-dmg.heal{color:var(--heal);}
+.who-gear{margin-top:9px;padding-top:8px;border-top:1px solid var(--line);font-size:11px;color:var(--dim);line-height:1.55;}
+.who-gear .wg-stats{font-family:var(--mono);color:var(--ink);}
+.who-gear .wg-load{color:var(--faint);}
+.who-gear .wg-load b{color:var(--dim);font-weight:500;}
+.delta{font-family:var(--mono);font-size:10.5px;white-space:nowrap;letter-spacing:.01em;}
+.delta.up{color:var(--heal);} .delta.down{color:var(--blood);} .delta.same{color:var(--faint);}
+.gr-delta{margin-top:3px;}
+.eqs .delta,.gear-mini .delta{display:inline;}
+.chip.gold{border-color:rgba(217,178,91,.4);color:var(--gold);}
+.coin{color:var(--gold);}
+.wallet{font-family:var(--mono);font-size:13.5px;color:var(--gold);border:1px solid rgba(217,178,91,.38);
+  background:rgba(217,178,91,.08);border-radius:9px;padding:7px 13px;display:inline-block;margin-bottom:12px;}
+.wallet b{color:var(--gold);}
+.forge-row{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--line);
+  border-left-width:3px;border-radius:9px;padding:10px 12px;margin-bottom:8px;}
+.fg-main{flex:1;min-width:0;}
+.fg-name{font-size:13.5px;font-weight:600;}
+.fg-where{font-size:10.5px;color:var(--faint);font-weight:400;}
+.fg-meta{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:2px;}
+.fg-prev{font-family:var(--mono);font-size:11px;color:var(--heal);margin-top:3px;}
+.maxplus{color:var(--gold);font-size:11px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -563,7 +592,7 @@ const RELICS=[
   {id:'regen_meute',ic:'✚',nom:'Souffle de la meute',desc:'Chaque chasseur récupère 4 PV en fin de round.'},
   {id:'egide',ic:'⛉',nom:'Égide de braise',desc:'La Guerrière entame chaque combat avec 20 de bouclier.'},
   {id:'lame_affutee',ic:'⚔',nom:'Pierre à aiguiser',desc:'+10% de chances de coup critique pour toute l’escouade.'},
-  {id:'bourse_trouee',ic:'◈',nom:'Bourse cousue',desc:'+1 Essence à chaque revente au marché.'},
+  {id:'bourse_trouee',ic:'◈',nom:'Bourse cousue',desc:'+3 Or à chaque revente au marché.'},
   {id:'besace_ample',ic:'▣',nom:'Besace ample',desc:'Octroie immédiatement 2 potions de soin.'},
   {id:'fureur_du_loup',ic:'≫',nom:'Fureur du loup',desc:'Toutes les recharges de compétences réduites de 1.'},
   {id:'talisman_du_traqueur',ic:'✷',nom:'Talisman du traqueur',desc:'Les compétences agissent comme à un niveau supérieur.'},
@@ -728,9 +757,10 @@ function rollLoot(slain, wave){
   for(let d=0;d<drops;d++) gear.push(genGear(rollRarity(wave,boss),wave));
   return {mats,gear};
 }
-function applyLoot(loot){ for(const m in loot.mats) g.inv.mats[m]=(g.inv.mats[m]||0)+loot.mats[m]; loot.gear.forEach(it=>g.inv.gear.push(it)); }
+function applyLoot(loot){ for(const m in loot.mats) g.inv.mats[m]=(g.inv.mats[m]||0)+loot.mats[m]; loot.gear.forEach(it=>g.inv.gear.push(it)); if(loot.gold) g.inv.gold=(g.inv.gold||0)+loot.gold; }
 function lootSummary(loot){
   const parts=[];
+  if(loot.gold) parts.push(`<div class="loot-mats"><span class="chip gold">+${loot.gold} Or ⊙</span></div>`);
   const mk=Object.keys(loot.mats);
   if(mk.length) parts.push(`<div class="loot-mats"><div class="chips">${mk.map(m=>`<span class="chip">${MAT_LABEL[m]} +${loot.mats[m]}</span>`).join('')}</div></div>`);
   if(loot.gear.length) parts.push(`<div class="loot-gear">${loot.gear.map(it=>`<span class="loot-item" style="color:${RAR_COLOR[it.rarity]}">⬩ ${it.nom} <small>(${it.rarity}${it.prop?' · '+PROP_LABEL[it.prop]:''}) · ⌖ ${optimName(it)}</small></span>`).join('')}</div>`);
@@ -750,7 +780,7 @@ const NODE={
 };
 function newRun(thirdClass){
   g={ team:[ makeHero('guerriere'), makeHero('archere'), makeHero(thirdClass) ],
-      mons:[], inv:{mats:{cuir:0,croc:0,os:0,fer:0,essence:0,herbe:0}, gear:[], potions:1},
+      mons:[], inv:{mats:{cuir:0,croc:0,os:0,fer:0,essence:0,herbe:0}, gear:[], potions:1, gold:0},
       lastLoot:null, buffAtk:null, log:[], depthReached:0, relics:[] };
   const M=metaMods();
   g.inv.potions+=M.potions;
@@ -1039,6 +1069,10 @@ function endCombat(){
   const loot=rollLoot(g.mons.slice(),depth);
   if(g.combatKind==='elite') loot.gear.push(genGear(upTier(rollRarity(depth,false)),depth));
   if(hasRelic('oeil_du_corbeau')) loot.gear.push(genGear(rollRarity(depth,false),depth));
+  let gold=rint(4,7)+Math.round(depth*1.6);
+  if(g.combatKind==='elite') gold+=8+depth;
+  if(g.combatKind==='boss') gold+=40;
+  loot.gold=gold;
   applyLoot(loot); g.lastLoot=lootSummary(loot);
   _ending=false;
   completeNode();
@@ -1102,7 +1136,7 @@ function openRest(){
       {label:'Affûter près du feu', sub:'Améliore une compétence', run(e){ e.result='L’entraînement paie — '+eUpgradeRandomSkill()+'.'; e.resolved=true; }},
     ]});
 }
-function gearOption(it, mat){ return {label:it.nom, sub:`${it.rarity} · ${plainStats(it)}${it.prop?' · '+PROP_LABEL[it.prop]:''} · ⌖ ${optimName(it)}`, run(e){ g.inv.gear.push(it); eGainMat(mat,3); e.result=`Tu choisis ${it.nom}, plus 3 ${MAT_LABEL[mat]}.`; e.resolved=true; }}; }
+function gearOption(it, mat){ return {label:gearName(it), sub:`${it.rarity} · ${plainStats(it)}${it.prop?' · '+PROP_LABEL[it.prop]:''} · ${deltaVerdict(it)}`, run(e){ g.inv.gear.push(it); eGainMat(mat,3); e.result=`Tu choisis ${gearName(it)}, plus 3 ${MAT_LABEL[mat]}.`; e.resolved=true; }}; }
 function relicOption(){ const r=pick(RELICS.filter(x=>!hasRelic(x.id))); return {label:`${r.ic} ${r.nom}`, sub:`Artefact — ${r.desc}`, run(e){ addRelic(r.id); e.result=`Tu scelles un artefact : ${r.nom}.`; e.resolved=true; }}; }
 function openTreasure(depth){
   const mat=pick(MATS);
@@ -1156,16 +1190,15 @@ function openEvent(depth){
 function encChoose(k){ const e=g.enc; if(!e||e.resolved) return; const o=e.options[k]; if(!o||o.disabled) return; o.run(e); render(); }
 
 /* ---------- marchand ---------- */
-function shopPrice(rar){ const base=[ {fer:2,cuir:2}, {fer:3,essence:1}, {fer:4,essence:2,os:1}, {fer:5,essence:3,os:2} ][RARITIES.indexOf(rar)];
-  const disc=metaMods().shopDisc; if(!disc) return base;
-  const out={}; for(const k in base) out[k]=Math.max(1,Math.ceil(base[k]*(1-disc))); return out; }
+function shopPrice(rar){ let base=[10,20,34,56][RARITIES.indexOf(rar)];
+  const disc=metaMods().shopDisc; if(disc) base=Math.max(1,Math.ceil(base*(1-disc))); return base; }
 function openShop(depth){
   const stock=[]; for(let k=0;k<3;k++){ const rar=rollRarity(depth+1,false); stock.push({it:genGear(rar,depth+1), cost:shopPrice(rar), sold:false}); }
-  g.shop={depth, stock, potionCost:{herbe:1}}; ui.screen='shop'; render();
+  g.shop={depth, stock, potionCost:Math.max(3,Math.ceil(7*(1-(metaMods().shopDisc||0))))}; ui.screen='shop'; render();
 }
-function buyGear(k){ const s=g.shop.stock[k]; if(!s||s.sold||!canAfford(s.cost)) return; spend(s.cost); g.inv.gear.push(s.it); s.sold=true; toast(`Acheté : ${s.it.nom}.`); render(); }
-function buyPotion(){ if(!canAfford(g.shop.potionCost)) return; spend(g.shop.potionCost); g.inv.potions++; toast('Potion achetée.'); render(); }
-function sellGear(id){ const idx=g.inv.gear.findIndex(x=>x.id===id); if(idx<0) return; const it=g.inv.gear[idx]; let v=[1,2,3,5][RARITIES.indexOf(it.rarity)]; if(hasRelic('bourse_trouee')) v+=1; g.inv.mats.essence=(g.inv.mats.essence||0)+v; g.inv.gear.splice(idx,1); toast(`Vendu : ${it.nom} (+${v} Essence).`); render(); }
+function buyGear(k){ const s=g.shop.stock[k]; if(!s||s.sold||(g.inv.gold||0)<s.cost) return; g.inv.gold-=s.cost; g.inv.gear.push(s.it); s.sold=true; toast(`Acheté : ${gearName(s.it)}.`); render(); }
+function buyPotion(){ if((g.inv.gold||0)<g.shop.potionCost) return; g.inv.gold-=g.shop.potionCost; g.inv.potions++; toast('Potion achetée.'); render(); }
+function sellGear(id){ const idx=g.inv.gear.findIndex(x=>x.id===id); if(idx<0) return; const it=g.inv.gear[idx]; const v=sellValue(it); g.inv.gold=(g.inv.gold||0)+v; g.inv.gear.splice(idx,1); toast(`Vendu : ${gearName(it)} (+${v} Or).`); render(); }
 
 /* ============================================================ VUES */
 function topBar(right){ return `<div class="top"><span class="mk">${MARK}</span><span class="brand">MEUTE</span><span class="wave">${right||''}</span></div>`; }
@@ -1196,6 +1229,69 @@ function optimTag(it){ return `<span class="optim" title="Statistiques idéales 
 function optimMark(it,hi){ return bestHeroIdx(it)===hi
   ? `<span class="optim ideal" title="Idéal pour ce chasseur">★ idéal</span>`
   : `<span class="optim" title="Convient mieux à ${optimName(it)}">⌖ ${optimName(it)}</span>`; }
+function gearName(it){ return it.nom+((it.plus)?` +${it.plus}`:''); }
+const STAT_SYM={atk:'⚔',def:'⛨',pvMax:'♥',vit:'⚡'};
+function slotDelta(it,h){
+  const cur=h.gear[it.slot]; const a=it.stats||{}, b=(cur&&cur.stats)||{}; const parts=[];
+  ['atk','def','pvMax','vit'].forEach(k=>{ const d=(a[k]||0)-(b[k]||0); if(d) parts.push(`${d>0?'+':''}${d}${STAT_SYM[k]}`); });
+  const sc=itemScore(it,h)-(cur?itemScore(cur,h):0);
+  const dir=sc>0.06?'up':sc<-0.06?'down':'same';
+  return {dir, arrow:dir==='up'?'▲':dir==='down'?'▼':'≈', parts, txt:parts.join(' '), hasCur:!!cur};
+}
+function deltaTag(it,h){ const d=slotDelta(it,h);
+  const tail=d.parts.length?` ${d.txt}`:(d.hasCur?' équivalent':' (libre)');
+  const tt=d.dir==='up'?`Améliore ${h.nom}`:d.dir==='down'?`En retrait pour ${h.nom}`:`Équivalent pour ${h.nom}`;
+  return `<span class="delta ${d.dir}" title="${tt}">${d.arrow}${tail}</span>`; }
+function deltaVerdict(it){ const h=g.team[bestHeroIdx(it)]; const d=slotDelta(it,h);
+  const word=d.dir==='up'?'Amélioration':d.dir==='down'?'En retrait':'Équivalent';
+  return `<span class="delta ${d.dir}">${d.arrow} ${word} pour ${h.nom}${d.parts.length?` · ${d.txt}`:''}</span>`; }
+function estPhysMagic(atk,def,magic,pen){ const f=magic?(pen?0.1:0.25):0.6; return Math.max(1,Math.round(atk-def*f)); }
+function globalDmgMult(m){ let mult=1; if(hasRelic('braise_eternelle')) mult*=1.15; const p=metaMods().dmgPct; if(p) mult*=(1+p/100); if(m&&m.vuln>0) mult*=1.3; return mult; }
+function previewSkill(h,sk,baseLvl){
+  const lvl=baseLvl+(hasRelic('talisman_du_traqueur')?1:0)+(metaMods().skillLvl?1:0); const lm=1+0.35*(lvl-1);
+  const atk=heroAtk(h); const pen=(h.cls==='mage');
+  const tgt=(g.mons[ui.target]&&g.mons[ui.target].pv>0)?g.mons[ui.target]:g.mons[firstLivingMon()];
+  switch(sk.kind){
+    case 'st_dmg':{ if(!tgt) return null; let d=Math.round(atk*sk.mult*lm); if(!sk.ignoreDef) d=Math.max(1,d-Math.floor(tgt.def*(sk.magic?0.25:0.5))); return {t:'~'+Math.round(d*globalDmgMult(tgt))}; }
+    case 'aoe_dmg':{ if(!tgt) return null; let d=Math.round(atk*sk.mult*lm); d=Math.max(1,d-Math.floor(tgt.def*(sk.magic?(pen?0.1:0.25):0.5))); return {t:'~'+Math.round(d*globalDmgMult(tgt))+' ×tous'}; }
+    case 'heal': return {t:'+'+Math.round(atk*sk.mult*lm),c:'heal'};
+    case 'heal_all': return {t:'+'+Math.round(atk*sk.mult*lm)+' ×tous',c:'heal'};
+    case 'buff_atk': return {t:`+${Math.round(sk.pct*100)}% ATQ`,c:'heal'};
+    case 'dot_all': return {t:Math.round(atk*0.5*lm)+'/t ×'+sk.turns};
+    case 'dot_st': return {t:Math.round(atk*0.6*lm)+'/t'};
+  }
+  return null;
+}
+function previewActionDmg(h,act){
+  if(act==='attaque'){ const tgt=(g.mons[ui.target]&&g.mons[ui.target].pv>0)?g.mons[ui.target]:g.mons[firstLivingMon()]; if(!tgt) return null;
+    const magic=CLASSES[h.cls].dmg==='magie'; let d=estPhysMagic(Math.round(heroAtk(h)),tgt.def,magic,h.cls==='mage'); return {t:'~'+Math.round(d*globalDmgMult(tgt))}; }
+  if(act==='skillA') return previewSkill(h,CLASSES[h.cls].skill,h.skillLvl);
+  if(act==='skillB') return previewSkill(h,CLASSES[h.cls].skillB,h.skillBLvl);
+  if(act==='potion') return {t:'+'+Math.round(heroStats(h).pvMax*0.5),c:'heal'};
+  return null;
+}
+function sellValue(it){ let v=[3,6,10,18][RARITIES.indexOf(it.rarity)]; v+=Math.round(v*0.4)*(it.plus||0); if(hasRelic('bourse_trouee')) v+=3; return v; }
+function findGear(id){ let it=g.inv.gear.find(x=>x.id===id); if(it) return {it,where:'Sac'};
+  for(let i=0;i<g.team.length;i++){ for(const sl of ['arme','armure','talisman']){ const x=g.team[i].gear[sl]; if(x&&x.id===id) return {it:x,where:g.team[i].nom,hero:i}; } } return null; }
+const MAX_PLUS=3;
+function upgradeCost(it){ return Math.round([10,16,26,42][RARITIES.indexOf(it.rarity)]*(1+(it.plus||0)*0.9)); }
+function upgradePreview(it){ const parts=[]; for(const k in it.stats){ parts.push('+'+Math.max(1,Math.round(it.stats[k]*0.25))+STAT_SYM[k]); } return parts.join(' '); }
+function upgradeGear(id){ const f=findGear(id); if(!f) return; const it=f.it;
+  if((it.plus||0)>=MAX_PLUS){ toast('Équipement déjà au maximum.'); return; }
+  const cost=upgradeCost(it); if((g.inv.gold||0)<cost){ toast('Pas assez d’Or.'); return; }
+  g.inv.gold-=cost; it.plus=(it.plus||0)+1;
+  for(const k in it.stats){ it.stats[k]+=Math.max(1,Math.round(it.stats[k]*0.25)); }
+  if(!it.prop && it.plus>=2 && chance(0.5)) it.prop=pick(GEAR_PROPS);
+  if(f.hero!=null){ const h=g.team[f.hero]; const mx=heroStats(h).pvMax; if(h.pv>mx) h.pv=mx; }
+  toast(`${gearName(it)} renforcé !`); render(); }
+function forgeRows(list){ return list.map(o=>{ const it=o.it; const max=(it.plus||0)>=MAX_PLUS; const cost=upgradeCost(it);
+  const prev=max?'':`<div class="fg-prev">→ ${upgradePreview(it)}</div>`;
+  const btn=max?`<span class="maxplus">+${MAX_PLUS} max</span>`:`<button class="mini" data-upg="${it.id}" ${(g.inv.gold||0)>=cost?'':'disabled'}>Renforcer · ${cost} ⊙</button>`;
+  return `<div class="forge-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
+    <div class="fg-main"><div class="fg-name" style="color:${RAR_COLOR[it.rarity]}">${gearName(it)} <span class="fg-where">· ${o.where}</span></div>
+      <div class="fg-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div>${prev}</div>
+    ${btn}</div>`; }).join(''); }
+function allGearList(){ const list=[]; g.team.forEach((h,i)=>['arme','armure','talisman'].forEach(sl=>{ if(h.gear[sl]) list.push({it:h.gear[sl],where:h.nom}); })); g.inv.gear.forEach(it=>list.push({it,where:'Sac'})); return list; }
 function shortName(n){ return n.slice(0,3); }
 function intentLabel(m){
   const k=(m.intent||{}).kind||'attack';
@@ -1258,6 +1354,8 @@ function viewTitle(){
       <b>Passifs & talents.</b> Chacun a un passif permanent et deux compétences — la seconde se débloque au camp, onglet <b>Talents</b>, avec de l’Essence et des Os.<br><br>
       <b>Le camp</b> (accessible depuis la carte) sert à équiper le <b>butin</b>, fabriquer à l’<b>Atelier</b>, améliorer les <b>compétences</b> et ranimer les blessés. Les PV ne remontent pas seuls : compte sur les <b>Repos</b>, les potions, la Soigneuse et certaines rencontres.<br><br>
       <b>Élites & dangers.</b> Un monstre d’<b>élite</b> (enragé, blindé, véloce ou vorace) garde un butin supérieur. Méfie-toi des <b>Pustules</b> qui explosent en mourant et des <b>Veuves</b> qui empoisonnent. L’équipement rare peut porter une <b>propriété</b> (vol de vie, critique, recharge accélérée).<br><br>
+<b>Lis le terrain.</b> Sur chaque monstre, l’<b>intention</b> (⚔ dégâts, ✚ soin, ▲ rage, ✸ zone) annonce son prochain coup ; sous tes actions, l’aperçu <span class="k">~chiffre</span> indique les dégâts ou soins attendus.<br><br>
+      <b>Or & forge.</b> Combats et reventes rapportent de l’<span class="k">Or ⊙</span> : dépense-le au marché pour acheter, ou à la <b>Forge</b> du camp pour renforcer tes équipements (jusqu’à +3). Au camp, chaque pièce indique si elle <span class="k">▲ améliore</span> ou <span class="k">▼ diminue</span> le chasseur.<br><br>
       Raccourcis combat : <span class="k">1</span> attaque · <span class="k">2</span> compétence 1 · <span class="k">3</span> compétence 2 · <span class="k">4</span> potion.
     </div></details>
   </div>`;
@@ -1338,14 +1436,18 @@ function viewCombat(){
   let actions='';
   if(hi>=0){ const h=g.team[hi]; const c=CLASSES[h.cls]; const livMons=g.mons.filter(m=>m.pv>0).length;
     const buffNote=(g.buffAtk&&g.buffAtk.turns>0)?`<span class="buffnote">ATQ ↑ ${g.buffAtk.turns}</span>`:'';
+    const _st=heroStats(h);
+    const pa=a=>{ const p=previewActionDmg(h,a); return (p&&p.t)?`<small class="act-dmg ${p.c||''}">${p.t}</small>`:''; };
+    const load=['arme','armure','talisman'].map(sl=>{ const it=h.gear[sl]; return it?`<b>${gearName(it)}</b>`:'—'; }).join(' · ');
     actions=`<div class="turnbar">
       <div class="turnwho">Au tour de <b>${h.nom}</b>${buffNote}</div>
       <div class="actions">
-        <button class="act" data-act="attaque">Attaque</button>
-        <button class="act" data-act="skillA" ${h.cdA>0?'disabled':''}>${c.skill.nom}${h.cdA>0?` ⟳${h.cdA}`:''}</button>
-        ${h.skillBunlocked?`<button class="act" data-act="skillB" ${h.cdB>0?'disabled':''}>${c.skillB.nom}${h.cdB>0?` ⟳${h.cdB}`:''}</button>`:''}
-        <button class="act" data-act="potion" ${g.inv.potions<=0?'disabled':''}>Potion${g.inv.potions>0?` ·${g.inv.potions}`:''}</button>
+        <button class="act" data-act="attaque"><span class="act-n">Attaque</span>${pa('attaque')}</button>
+        <button class="act" data-act="skillA" ${h.cdA>0?'disabled':''}><span class="act-n">${c.skill.nom}${h.cdA>0?` ⟳${h.cdA}`:''}</span>${h.cdA>0?'':pa('skillA')}</button>
+        ${h.skillBunlocked?`<button class="act" data-act="skillB" ${h.cdB>0?'disabled':''}><span class="act-n">${c.skillB.nom}${h.cdB>0?` ⟳${h.cdB}`:''}</span>${h.cdB>0?'':pa('skillB')}</button>`:''}
+        <button class="act" data-act="potion" ${g.inv.potions<=0?'disabled':''}><span class="act-n">Potion${g.inv.potions>0?` ·${g.inv.potions}`:''}</span>${g.inv.potions>0?pa('potion'):''}</button>
       </div>
+      <div class="who-gear"><span class="wg-stats">♥${Math.max(0,h.pv)}/${_st.pvMax} ⚔${_st.atk} ⛨${_st.def} ⚡${_st.vit}</span> · <span class="wg-load">${load}</span></div>
       ${livMons>1?`<div class="hint">Cible : ${g.mons[ui.target]?g.mons[ui.target].nom:'—'} — touche un monstre pour changer.</div>`:''}
     </div>`;
   }
@@ -1360,7 +1462,7 @@ function viewCombat(){
 }
 function resourceStrip(){
   const mats=MATS.map(m=>`<span class="chip">${MAT_LABEL[m]} ·${g.inv.mats[m]||0}</span>`).join('');
-  return `<div class="strip">${mats}<span class="chip">Potion ·${g.inv.potions}</span></div>`;
+  return `<div class="strip">${mats}<span class="chip">Potion ·${g.inv.potions}</span><span class="chip gold">Or ·${g.inv.gold||0} ⊙</span></div>`;
 }
 function viewCamp(){
   return `${topBar('Camp')}
@@ -1368,10 +1470,10 @@ function viewCamp(){
     <div class="tabs">
       <button class="tab ${ui.tab==='equipe'?'on':''}" data-tab="equipe">Équipe</button>
       <button class="tab ${ui.tab==='talents'?'on':''}" data-tab="talents">Talents</button>
+      <button class="tab ${ui.tab==='forge'?'on':''}" data-tab="forge">Forge</button>
       <button class="tab ${ui.tab==='sac'?'on':''}" data-tab="sac">Sac</button>
-      <button class="tab ${ui.tab==='atelier'?'on':''}" data-tab="atelier">Atelier</button>
     </div>
-    <div class="tabbody">${ui.tab==='equipe'?campEquipe():ui.tab==='talents'?campTalents():ui.tab==='sac'?campSac():campAtelier()}</div>
+    <div class="tabbody">${ui.tab==='equipe'?campEquipe():ui.tab==='talents'?campTalents():ui.tab==='forge'?campForge():campSac()}</div>
     <button class="cta sticky-cta" id="map-back">◂ Retour à la carte</button>`;
 }
 function campEquipe(){
@@ -1379,11 +1481,11 @@ function campEquipe(){
     const st=heroStats(h); const c=CLASSES[h.cls];
     const slots=['arme','armure','talisman'].map(sl=>{ const it=h.gear[sl];
       if(it){
-        return `<div class="slot"><span class="slot-k">${sl}</span><button class="gear-mini" data-unequip="${i}:${sl}" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}"><span style="color:${RAR_COLOR[it.rarity]}">${it.nom}</span> ${gearStatsShort(it)} ${gearPropTag(it)} ${optimMark(it,i)}</button></div>`;
+        return `<div class="slot"><span class="slot-k">${sl}</span><button class="gear-mini" data-unequip="${i}:${sl}" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}"><span style="color:${RAR_COLOR[it.rarity]}">${gearName(it)}</span> ${gearStatsShort(it)} ${gearPropTag(it)} ${optimMark(it,i)}</button></div>`;
       }
       const avail=g.inv.gear.filter(x=>x.slot===sl).sort((a,b)=>statSum(b)-statSum(a)).slice(0,3);
       const body=avail.length
-        ? `<div class="eqchips">${avail.map(x=>`<button class="eqs" data-equip="${x.id}:${i}" style="--rc:${RAR_COLOR[x.rarity]};border-left-color:${RAR_COLOR[x.rarity]}"><span style="color:${RAR_COLOR[x.rarity]}">${x.nom}</span> ${gearStatsShort(x)} ${optimMark(x,i)}</button>`).join('')}</div>`
+        ? `<div class="eqchips">${avail.map(x=>`<button class="eqs" data-equip="${x.id}:${i}" style="--rc:${RAR_COLOR[x.rarity]};border-left-color:${RAR_COLOR[x.rarity]}"><span style="color:${RAR_COLOR[x.rarity]}">${gearName(x)}</span> ${gearStatsShort(x)} ${deltaTag(x,h)}</button>`).join('')}</div>`
         : `<span class="empty">— vide —</span>`;
       return `<div class="slot ${avail.length?'slot-col':''}"><span class="slot-k">${sl}</span>${body}</div>`;
     }).join('');
@@ -1432,9 +1534,9 @@ function campSac(){
   if(!g.inv.gear.length){ gearList=`<div class="empty-box">Aucun équipement en réserve. Abats des monstres ou fabrique-en à l’Atelier.</div>`; }
   else {
     gearList=g.inv.gear.map(it=>`<div class="gear-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
-      <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${it.nom}</div>
-        <div class="gr-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div><div class="gr-opt">${optimTag(it)}</div></div>
-      <div class="gr-equip">${g.team.map((h,i)=>`<button class="eq" data-equip="${it.id}:${i}" title="Équiper sur ${h.nom}">${shortName(h.nom)}</button>`).join('')}</div>
+      <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${gearName(it)}</div>
+        <div class="gr-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div><div class="gr-delta">${deltaVerdict(it)}</div></div>
+      <div class="gr-equip">${g.team.map((h,i)=>`<button class="eq" data-equip="${it.id}:${i}" title="Équiper sur ${h.nom} · ${slotDelta(it,h).arrow}">${shortName(h.nom)}</button>`).join('')}</div>
     </div>`).join('');
   }
   const mats=MATS.map(m=>`<span class="chip">${MAT_LABEL[m]} ·${g.inv.mats[m]||0}</span>`).join('');
@@ -1451,6 +1553,16 @@ function campAtelier(){
       <button class="mini" data-craft="${r.id}" ${ok?'':'disabled'}>Fabriquer</button>
     </div>`; }).join('');
   return `<div class="hintbox">Abats des monstres pour récolter des matériaux — chaque combat en lâche désormais une bonne poignée. Transforme ton surplus en équipement (rareté selon ta progression) ou en potions. Le coût affiche <b>ce que tu possèdes / ce qu’il faut</b>.</div>${rows}`;
+}
+function campForge(){
+  const list=allGearList();
+  const upg=list.length?forgeRows(list):`<div class="empty-box">Aucun équipement à renforcer pour l’instant.</div>`;
+  return `<div class="wallet">Bourse : <b>${g.inv.gold||0} ⊙</b></div>
+    <div class="rb-h">Fabrication — matériaux</div>
+    ${campAtelier()}
+    <div class="rb-h shop-sell-h">Renforcement — Or ⊙</div>
+    <div class="hintbox">Dépense ton <b>Or ⊙</b> (gagné en combat et à la revente au marché) pour <b>renforcer</b> un équipement : +25% sur toutes ses stats par palier, avec une chance de révéler une propriété. Maximum +${MAX_PLUS}.</div>
+    ${upg}`;
 }
 function viewMap(){
   const R=g.map.R, rows=g.map.rows;
@@ -1487,7 +1599,7 @@ function viewMap(){
     ${banner}
     <div class="map-hint">${hint}</div>
     <div class="mapwrap">${edgesSvg}${rowsHtml}</div>
-    <button class="btn2 sticky-bot" id="open-camp">Camp — équipe · talents · atelier · sac</button>`;
+    <button class="btn2 sticky-bot" id="open-camp">Camp — équipe · talents · forge · sac</button>`;
 }
 function viewEncounter(){
   const e=g.enc; const lbl=NODE[g.map.rows[g.pendingNode.r][g.pendingNode.i].type].label;
@@ -1502,23 +1614,27 @@ function viewEncounter(){
 }
 function viewShop(){
   const buy=g.shop.stock.map((s,k)=>`<div class="shop-row" style="--rc:${RAR_COLOR[s.it.rarity]};border-left-color:${RAR_COLOR[s.it.rarity]}">
-      <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[s.it.rarity]}">${s.it.nom}</div>
-        <div class="gr-meta">${s.it.slot} · ${s.it.rarity} · ${gearStatsShort(s.it)} ${gearPropTag(s.it)}</div><div class="gr-opt">${optimTag(s.it)}</div></div>
-      ${s.sold?`<span class="maxed">vendu</span>`:`<button class="mini" data-buy="${k}" ${canAfford(s.cost)?'':'disabled'}>${costStr(s.cost)}</button>`}
+      <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[s.it.rarity]}">${gearName(s.it)}</div>
+        <div class="gr-meta">${s.it.slot} · ${s.it.rarity} · ${gearStatsShort(s.it)} ${gearPropTag(s.it)}</div><div class="gr-delta">${deltaVerdict(s.it)}</div></div>
+      ${s.sold?`<span class="maxed">vendu</span>`:`<button class="mini" data-buy="${k}" ${(g.inv.gold||0)>=s.cost?'':'disabled'}>${s.cost} ⊙</button>`}
     </div>`).join('');
   const sell = !g.inv.gear.length?`<div class="empty-box">Rien à revendre.</div>`
     : g.inv.gear.map(it=>`<div class="shop-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
-      <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${it.nom}</div>
+      <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${gearName(it)}</div>
         <div class="gr-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div><div class="gr-opt">${optimTag(it)}</div></div>
-      <button class="mini danger" data-sell="${it.id}">Vendre · +${[1,2,3,5][RARITIES.indexOf(it.rarity)]} Essence</button>
+      <button class="mini danger" data-sell="${it.id}">Vendre · +${sellValue(it)} ⊙</button>
     </div>`).join('');
+  const list=allGearList();
+  const forge=list.length?forgeRows(list):`<div class="empty-box">Aucun équipement à renforcer.</div>`;
   return `${topBar('Marché')}
     <div class="enc-ic">⬡</div><h2 class="ctr">Marchand des cendres</h2>
-    <p class="enc-text ctr">Un colporteur masqué étale sa camelote sur une peau tannée.</p>
+    <p class="enc-text ctr">Un colporteur masqué étale sa camelote sur une peau tannée. Ici tout se paie en <span class="coin">Or ⊙</span>.</p>
+    <div class="ctr"><span class="wallet">Bourse : <b>${g.inv.gold||0} ⊙</b></span></div>
     ${resourceStrip()}
-    <div class="rb-h">À vendre</div>${buy}
-    <div class="shop-row"><div class="gr-main"><div class="gr-name">Potion de soin</div><div class="gr-meta">restaure 50% des PV en combat</div></div><button class="mini" id="buy-potion" ${canAfford(g.shop.potionCost)?'':'disabled'}>${costStr(g.shop.potionCost)}</button></div>
+    <div class="rb-h">Acheter</div>${buy}
+    <div class="shop-row"><div class="gr-main"><div class="gr-name">Potion de soin</div><div class="gr-meta">restaure 50% des PV en combat</div></div><button class="mini" id="buy-potion" ${(g.inv.gold||0)>=g.shop.potionCost?'':'disabled'}>${g.shop.potionCost} ⊙</button></div>
     <div class="rb-h shop-sell-h">Revendre ton équipement</div>${sell}
+    <div class="rb-h shop-sell-h">Forge — renforcer un équipement</div>${forge}
     <button class="cta sticky-cta" id="shop-leave">Quitter le marché ▸</button>`;
 }
 function viewLair(){
@@ -1621,6 +1737,7 @@ function bind(){
   else if(ui.screen==='shop'){
     bindEach('[data-buy]',el=>buyGear(+el.dataset.buy));
     bindEach('[data-sell]',el=>sellGear(+el.dataset.sell));
+    bindEach('[data-upg]',el=>upgradeGear(+el.dataset.upg));
     const bp=$('buy-potion'); if(bp) bp.onclick=()=>buyPotion();
     const lv=$('shop-leave'); if(lv) lv.onclick=()=>completeNode();
   }
@@ -1638,6 +1755,7 @@ function bind(){
     bindEach('[data-unlockb]',el=>unlockSkillB(+el.dataset.unlockb));
     bindEach('[data-revive]',el=>revive(+el.dataset.revive));
     bindEach('[data-craft]',el=>craft(el.dataset.craft));
+    bindEach('[data-upg]',el=>upgradeGear(+el.dataset.upg));
   }
   else if(ui.screen==='lair'){
     bindEach('[data-buy]',el=>buyMeta(el.dataset.buy));
