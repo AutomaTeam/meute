@@ -574,6 +574,39 @@ button.unit:hover:not(:disabled){border-color:var(--line2);}
   .act .act-n{font-size:11px;}
   .pick-name{font-size:15px;}
 }
+
+/* ====== PROFONDEUR : péril, défense, inspect, juice ====== */
+.peril-pick{max-width:360px;margin:14px auto 2px;border:1px solid var(--line2);border-radius:11px;padding:11px 13px;background:var(--bg2);}
+.peril-h{font-size:12.5px;color:var(--dim);text-align:center;letter-spacing:.04em;}
+.peril-h b{color:var(--blood);font-family:var(--mono);}
+.peril-chips{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:8px 0;}
+.pchip2{cursor:pointer;font-family:var(--mono);font-size:13px;color:var(--dim);background:var(--bg3);border:1px solid var(--line2);border-radius:8px;min-width:36px;min-height:36px;padding:5px 9px;transition:.14s;}
+.pchip2:hover{border-color:var(--blood);color:var(--ink);}
+.pchip2.on{background:var(--blood-soft);border-color:var(--blood);color:var(--blood);font-weight:700;}
+.peril-desc{font-size:11.5px;color:var(--faint);text-align:center;line-height:1.4;}
+.peril-up{max-width:420px;margin:10px auto 0;border:1px solid var(--blood);background:var(--blood-soft);border-radius:9px;padding:9px 12px;color:var(--ink);font-size:13px;text-align:center;}
+.peril-up b{color:var(--blood);font-family:var(--mono);}
+.st-guard{color:var(--steel);}
+.act-dmg.shield{color:var(--steel);}
+.act:hover:not(:disabled) .act-dmg.shield{color:var(--steel);}
+@keyframes wshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+.wrap.shake{animation:wshake .34s ease;}
+.relic{cursor:pointer;}
+.hc-skill .prop{cursor:pointer;}
+/* bottom-sheet inspect (mobile tooltips) */
+.isheet-back{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;animation:fadein .2s ease;}
+.isheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:100%;max-width:520px;z-index:81;
+  background:var(--bg2);border:1px solid var(--line2);border-bottom:none;border-radius:16px 16px 0 0;
+  padding:16px 18px max(18px,env(safe-area-inset-bottom));box-shadow:0 -12px 40px rgba(0,0,0,.62);animation:sheetup .24s cubic-bezier(.2,.8,.2,1);}
+@keyframes sheetup{from{transform:translate(-50%,100%);}to{transform:translate(-50%,0);}}
+@keyframes fadein{from{opacity:0;}to{opacity:1;}}
+.ish-h{display:flex;align-items:center;gap:9px;font-size:16px;margin-bottom:8px;}
+.ish-ic{color:var(--ember);font-size:18px;line-height:1;}
+.ish-x{margin-left:auto;background:var(--bg3);border:1px solid var(--line2);color:var(--dim);border-radius:7px;min-width:34px;min-height:34px;cursor:pointer;font-size:14px;}
+.ish-x:hover{border-color:var(--ember);color:var(--ember);}
+.ish-body{font-size:13.5px;color:var(--dim);line-height:1.55;}
+.ish-body p{margin:0 0 6px;}
+.ish-cost{font-family:var(--mono);color:var(--faint);font-size:12px;}
 </style>
 </head>
 <body>
@@ -670,13 +703,14 @@ const RELICS=[
   {id:'pacte_de_sang',ic:'✜',nom:'Pacte de sang',desc:'Les attaques de base soignent l’attaquant de 15% des dégâts.'},
   {id:'gardien_ancestral',ic:'⬡',nom:'Gardien ancestral',desc:'−10% de dégâts subis par toute l’escouade.'},
   {id:'oeil_du_corbeau',ic:'◉',nom:'Œil du corbeau',desc:'+1 équipement à chaque combat remporté.'},
+  {id:'venin_concentre',ic:'☣',nom:'Venin concentré',desc:'+50% aux dégâts de poison/brûlure (et ils s’accumulent).'},
 ];
 function relicById(id){ return RELICS.find(r=>r.id===id); }
 function hasRelic(id){ return !!(g && g.relics && g.relics.includes(id)); }
 function relicsLeft(){ return RELICS.some(r=>!hasRelic(r.id)); }
 function addRelic(id){ if(!g.relics) g.relics=[]; if(g.relics.includes(id)) return null; g.relics.push(id); if(id==='besace_ample') g.inv.potions+=2; return relicById(id); }
 function eGiveRelic(){ const pool=RELICS.filter(r=>!hasRelic(r.id)); if(!pool.length) return 'mais rien ne répond'; const r=pick(pool); addRelic(r.id); return `${r.ic} ${r.nom}`; }
-function relicBar(){ if(!g.relics||!g.relics.length) return ''; return `<div class="relics">${g.relics.map(id=>{ const r=relicById(id); return `<span class="relic" title="${r.nom} — ${r.desc}">${r.ic}</span>`; }).join('')}</div>`; }
+function relicBar(){ if(!g.relics||!g.relics.length) return ''; return `<div class="relics">${g.relics.map(id=>{ const r=relicById(id); return `<span class="relic" data-inspect="relic:${id}" title="${r.nom} — ${r.desc}">${r.ic}</span>`; }).join('')}</div>`; }
 function monPool(w){
   if(w<=2) return ['gobelin','loup','vipere'];
   if(w<=5) return ['gobelin','loup','vipere','tatou','spectre','nuee','veuve'];
@@ -700,13 +734,19 @@ const Store={
 let meta=Store.get('meute_meta')||{};
 meta.best=meta.best||0; meta.runs=meta.runs||0; meta.wins=meta.wins||0;
 meta.trophies=meta.trophies||0;
+meta.perilMax=meta.perilMax||0; meta.peril=Math.min(meta.peril||0, meta.perilMax); if(meta.sfx===undefined) meta.sfx=true;
 meta.upgrades=Object.assign({vigueur:0,crocs:0,butin:0,instinct:0}, meta.upgrades||{});
 function save(){ Store.set('meute_meta',meta); }
+function perilMods(){ const p=meta.peril||0; return { p, monPv:(p>=1?12:0)+(p>=5?12:0), monAtk:(p>=2?12:0)+(p>=8?15:0), healMul:(p>=4?0.85:1), shopMul:(p>=6?1.25:1), potionPenalty:(p>=3?1:0) }; }
+function healScale(v){ return Math.max(0,Math.round(v*perilMods().healMul)); }
+const PERIL_DESC=['Difficulté normale.','Monstres +12% PV.','Monstres +12% PV et +12% ATQ.','… et −1 potion de départ.','… et soins −15%.','… monstres +24% PV au total.','… marché +25% plus cher.','… combats d’élite renforcés.','Apocalypse — monstres +39% ATQ.'];
+function perilDesc(p){ return PERIL_DESC[Math.min(p,PERIL_DESC.length-1)]||''; }
 function exportSave(){ try{ return btoa(unescape(encodeURIComponent(JSON.stringify(meta)))); }catch(e){ return ''; } }
 function importSave(code){ try{ const o=JSON.parse(decodeURIComponent(escape(atob((code||'').trim())))); if(!o||typeof o!=='object') return false;
   meta=Object.assign({best:0,runs:0,wins:0,trophies:0,upgrades:{}}, o);
   meta.best=meta.best||0; meta.runs=meta.runs||0; meta.wins=meta.wins||0; meta.trophies=meta.trophies||0;
   meta.upgrades=Object.assign({vigueur:0,crocs:0,butin:0,instinct:0}, meta.upgrades||{});
+  meta.perilMax=meta.perilMax||0; meta.peril=Math.min(meta.peril||0,meta.perilMax); if(meta.sfx===undefined) meta.sfx=true;
   save(); return true; }catch(e){ return false; } }
 const META_TREE=[
   {id:'vigueur', nom:'Vigueur', ic:'⛨', nodes:[
@@ -867,6 +907,7 @@ function newRun(thirdClass){
   const M=metaMods();
   g.inv.potions+=M.potions;
   g.inv.gold+=(M.startGold||0);
+  g.peril=meta.peril||0; g.inv.potions=Math.max(0,g.inv.potions-perilMods().potionPenalty);
   if(M.mats){ ['cuir','croc','fer'].forEach(k=>g.inv.mats[k]+=M.mats); }
   if(M.skillB){ g.team.forEach(h=>{ h.skillBunlocked=true; }); }
   { let nRel=(M.startRelic?1:0); if(M.startRelic2) nRel=2; for(let z=0;z<nRel;z++){ if(relicsLeft()) addRelic(pick(RELICS.filter(r=>!hasRelic(r.id))).id); } }
@@ -941,7 +982,7 @@ function anyHeroAlive(){ return g.team.some(h=>h.pv>0); }
 function monAlive(i){ return g.mons[i] && g.mons[i].pv>0; }
 function firstLivingMon(){ const i=g.mons.findIndex(m=>m.pv>0); return i<0?0:i; }
 function clog(t){ g.log.unshift(t); if(g.log.length>12) g.log.pop(); }
-function fx(targetId,txt,cls){ ui._fx.push({targetId,txt,cls}); }
+function fx(targetId,txt,cls){ ui._fx.push({targetId,txt,cls}); if(cls==='crit'){ sfx('crit'); shake(); } else if(cls==='dmg') sfx('hit'); else if(cls==='heal') sfx('heal'); else if(cls==='shield') sfx('block'); }
 
 function makeMon(id, w, elite){
   const t=MONSTERS[id]; const f=1+0.18*(w-1);
@@ -954,6 +995,7 @@ function makeMon(id, w, elite){
     if(md.def) def=Math.round(def*md.def);
     if(md.pv) pvMax=Math.round(pvMax*md.pv);
     eliteNom=md.nom; }
+  { const pm=perilMods(); pvMax=Math.round(pvMax*(1+pm.monPv/100)); atk=Math.round(atk*(1+pm.monAtk/100)); }
   return {tmpl:id, nom:t.nom, pvMax, pv:pvMax, atk, def, vit:t.vit, magic:!!t.magic, boss:!!t.boss, heal:!!t.heal,
     elite:elite||null, eliteNom, enraged:false, exploded:false, dot:null};
 }
@@ -1003,7 +1045,7 @@ function dmgMon(i,d){ const m=g.mons[i];
   if(hasRelic('braise_eternelle')) d=Math.round(d*1.15);
   { const p=metaMods().dmgPct; if(p) d=Math.round(d*(1+p/100)); }
   if(m.vuln>0) d=Math.round(d*1.3);
-  m.pv-=d; if(m.pv<0)m.pv=0; _dealt+=d; fx('mon-'+i,'-'+d,'dmg'); return d; }
+  m.pv-=d; if(m.pv<0)m.pv=0; if(m.pv===0) sfx('death'); _dealt+=d; fx('mon-'+i,'-'+d,'dmg'); return d; }
 function checkDeaths(){
   g.mons.forEach((m,i)=>{ if(m.pv<=0 && m.tmpl==='pustule' && !m.exploded){ m.exploded=true;
     g.team.forEach((h,hi)=>{ if(h.pv>0) applyHeroDamage(h,hi,Math.round(m.atk*1.7)); });
@@ -1011,6 +1053,7 @@ function checkDeaths(){
   }});
 }
 function dmgToHeroVal(h,raw){ let d=raw;
+  if(h.guard>0) d=Math.round(d*0.6);
   if(CLASSES[h.cls].pid==='cuirasse') d=Math.round(d*0.85);
   if(hasRelic('gardien_ancestral')) d=Math.round(d*0.9);
   { const mt=metaMods().dmgTaken; if(mt) d=Math.round(d*(1-mt)); }
@@ -1025,9 +1068,10 @@ function applyHeroDamage(h,hi,raw){
 function lowestAlly(){ const liv=g.team.map((x,i)=>({x,i})).filter(o=>o.x.pv>0); if(!liv.length) return null;
   liv.sort((a,b)=>(a.x.pv/heroStats(a.x).pvMax)-(b.x.pv/heroStats(b.x).pvMax)); return liv[0]; }
 function decideIntent(m,i){
+  if(m.boss && !m.enraged && m.pv>0 && m.pv < m.pvMax*0.5){ m.enraged=true; m.atk=Math.round(m.atk*1.35); fx('mon-'+i,'FURIE','crit'); clog(`${m.nom} entre en furie !`); }
   if(m.heal){ const w=g.mons.some((x,j)=>j!==i && x.pv>0 && x.pv<x.pvMax); if(w){ m.intent={kind:'heal'}; return; } }
   if(m.tmpl==='totemiste'){ const a=g.mons.some(x=>x!==m && x.pv>0 && !x.enraged); if(a){ m.intent={kind:'buff'}; return; } }
-  if(m.boss){ m.intent=chance(0.32)?{kind:'aoe'}:{kind:'attack'}; return; }
+  if(m.boss){ m.intent=chance(m.enraged?0.5:0.32)?{kind:'aoe'}:{kind:'attack'}; return; }
   m.intent={kind:'attack'};
 }
 function decideIntents(){ g.mons.forEach((m,i)=>{ if(m.pv>0) decideIntent(m,i); else m.intent=null; }); }
@@ -1040,7 +1084,7 @@ function previewHeroDmg(m, aoe){
 
 function heroAction(act){
   const hi=curHeroIdx(); if(hi<0) return; const h=g.team[hi]; const c=CLASSES[h.cls];
-  ui._fx=[]; _dealt=0;
+  ui._fx=[]; _dealt=0; sfx('click');
   if(act==='attaque'){
     if(!monAlive(ui.target)) ui.target=firstLivingMon();
     const magic=c.dmg==='magie';
@@ -1054,8 +1098,11 @@ function heroAction(act){
     if(!h.skillBunlocked || h.cdB>0) return; castSkill(h,'B'); h.cdB=skillCdB(h);
   } else if(act==='potion'){
     if(g.inv.potions<=0) return; g.inv.potions--;
-    const st=heroStats(h); const heal=Math.round(st.pvMax*0.5); h.pv=Math.min(st.pvMax,h.pv+heal);
+    const st=heroStats(h); const heal=healScale(Math.round(st.pvMax*0.5)); h.pv=Math.min(st.pvMax,h.pv+heal);
     fx('hero-'+hi,'+'+heal,'heal'); clog(`${h.nom} boit une potion · +${heal}`);
+  } else if(act==='defense'){
+    const st=heroStats(h); const sh=Math.round(st.def*1.6+8); h.shield=(h.shield||0)+sh; h.guard=1;
+    fx('hero-'+hi,'⛉+'+sh,'shield'); clog(`${h.nom} se met en garde · +${sh} bouclier, dégâts du tour réduits`);
   } else return;
 
   let lifePct=(heroHasProp(h,'vampirique')?0.25:0)+(hasRelic('pacte_de_sang')?0.15:0)+perkSum(h,'lifesteal');
@@ -1065,6 +1112,9 @@ function heroAction(act){
   if(!anyMonAlive()){ render(); setTimeout(endCombat,360); return; }
   advanceHero();
 }
+function applyDot(m, dmg, turns){ if(hasRelic('venin_concentre')) dmg=Math.round(dmg*1.5);
+  if(m.dot){ m.dot.dmg+=dmg; m.dot.turns=Math.max(m.dot.turns,turns); m.dot.stacks=(m.dot.stacks||1)+1; }
+  else { m.dot={dmg,turns,stacks:1}; } }
 function castSkill(h, slot){
   const c=CLASSES[h.cls]; const sk=slot==='B'?c.skillB:c.skill;
   const healMul=1+perkSum(h,'healPct')/100;
@@ -1083,21 +1133,21 @@ function castSkill(h, slot){
       g.mons.forEach((m,i)=>{ if(m.pv>0){ let d=Math.round(atk*sk.mult*lm); d=Math.max(1,d-Math.floor(m.def*(sk.magic?(pen?0.1:0.25):0.5))); dmgMon(i,d); } });
       clog(`${h.nom} — ${sk.nom} frappe tous les ennemis`); break; }
     case 'heal':{
-      const t=lowestAlly(); if(!t) break; const heal=Math.round(atk*sk.mult*lm*healMul); const tm=heroStats(t.x).pvMax;
+      const t=lowestAlly(); if(!t) break; const heal=healScale(Math.round(atk*sk.mult*lm*healMul)); const tm=heroStats(t.x).pvMax;
       t.x.pv=Math.min(tm,t.x.pv+heal); fx('hero-'+t.i,'+'+heal,'heal'); clog(`${h.nom} soigne ${t.x.nom} · +${heal}`); break; }
     case 'heal_all':{
-      g.team.forEach((x,i)=>{ if(x.pv>0){ const tm=heroStats(x).pvMax; const heal=Math.round(atk*sk.mult*lm*healMul); x.pv=Math.min(tm,x.pv+heal); fx('hero-'+i,'+'+heal,'heal'); } });
+      g.team.forEach((x,i)=>{ if(x.pv>0){ const tm=heroStats(x).pvMax; const heal=healScale(Math.round(atk*sk.mult*lm*healMul)); x.pv=Math.min(tm,x.pv+heal); fx('hero-'+i,'+'+heal,'heal'); } });
       clog(`${h.nom} — ${sk.nom} soigne toute l’escouade`); break; }
     case 'buff_atk':{
       g.buffAtk={pct:sk.pct,turns:sk.turns};
       g.team.forEach(x=>{ if(x.pv>0) x.shield=(x.shield||0)+8; });
       clog(`${h.nom} — ${sk.nom} · +${Math.round(sk.pct*100)}% ATQ & bouclier`); break; }
     case 'dot_all':{
-      g.mons.forEach(m=>{ if(m.pv>0) m.dot={dmg:Math.round(atk*0.5*lm),turns:sk.turns}; });
+      g.mons.forEach(m=>{ if(m.pv>0) applyDot(m, Math.round(atk*0.5*lm), sk.turns); });
       clog(`${h.nom} — ${sk.nom} embrase les ennemis`); break; }
     case 'dot_st':{
       if(!monAlive(ui.target)) ui.target=firstLivingMon();
-      g.mons[ui.target].dot={dmg:Math.round(atk*0.6*lm),turns:sk.turns};
+      applyDot(g.mons[ui.target], Math.round(atk*0.6*lm), sk.turns);
       clog(`${h.nom} — ${sk.nom} empoisonne ${g.mons[ui.target].nom}`); break; }
   }
 }
@@ -1116,7 +1166,7 @@ function resolveMon(m,i){
   }
   if(it.kind==='aoe'){
     g.team.forEach((h,hi)=>{ if(h.pv>0){ let d=computeDmg(Math.round(m.atk*0.7),heroStats(h).def,m.magic); applyHeroDamage(h,hi,d); } });
-    clog(`${m.nom} déchaîne une attaque de zone !`); return;
+    shake(); clog(`${m.nom} déchaîne une attaque de zone !`); return;
   }
   const liv=g.team.map((h,hi)=>({h,hi})).filter(o=>o.h.pv>0);
   if(!liv.length) return;
@@ -1134,6 +1184,7 @@ function tickStatuses(){
   g.mons.forEach((m,i)=>{ if(m.pv>0 && m.dot && m.dot.turns>0){ const d=m.dot.dmg; m.pv=Math.max(0,m.pv-d); fx('mon-'+i,'-'+d,'dmg'); m.dot.turns--; if(m.dot.turns<=0) m.dot=null; }
     if(m.vuln>0) m.vuln--; });
   g.team.forEach(h=>{ if(h.vuln>0) h.vuln--; });
+  g.team.forEach(h=>{ if(h.guard>0) h.guard--; });
   if(g.buffAtk){ g.buffAtk.turns--; if(g.buffAtk.turns<=0) g.buffAtk=null; }
   if(hasRelic('regen_meute')) g.team.forEach((h,hi)=>{ if(h.pv>0){ const tm=heroStats(h).pvMax; if(h.pv<tm){ h.pv=Math.min(tm,h.pv+4); fx('hero-'+hi,'+4','heal'); } } });
   { const rg=metaMods().regen; if(rg) g.team.forEach((h,hi)=>{ if(h.pv>0){ const tm=heroStats(h).pvMax; if(h.pv<tm){ h.pv=Math.min(tm,h.pv+rg); fx('hero-'+hi,'+'+rg,'heal'); } } }); }
@@ -1171,8 +1222,10 @@ function endCombat(){
 }
 function gameOver(win){
   const reached=win?BOSS_WAVE:(g.depthReached||1);
-  const earned=trophiesFor(reached,win); meta.trophies=(meta.trophies||0)+earned;
-  meta.best=Math.max(meta.best||0,reached); if(win) meta.wins=(meta.wins||0)+1; save();
+  const earned=Math.round(trophiesFor(reached,win)*(1+(meta.peril||0)*0.3)); meta.trophies=(meta.trophies||0)+earned;
+  meta.best=Math.max(meta.best||0,reached); ui.perilUp=false;
+  if(win){ meta.wins=(meta.wins||0)+1; if((meta.peril||0)>=(meta.perilMax||0) && (meta.perilMax||0)<8){ meta.perilMax=(meta.perilMax||0)+1; ui.perilUp=true; } }
+  save(); sfx(win?'win':'lose');
   ui.screen='over'; ui.win=win; ui.finalWave=reached; ui.earned=earned; render();
 }
 
@@ -1274,6 +1327,22 @@ function openEvent(depth){
         {label:'S’emparer de l’artefact', sub:'Relique permanente', disabled:!relicsLeft(), run(e){ e.result='La pierre s’éveille — '+eGiveRelic()+'.'; e.resolved=true; }},
         {label:'Ne pas troubler les anciens', run(e){ e.result='Tu recules, et le silence retombe.'; e.resolved=true; }},
       ]}),
+    ()=>({icon:'⊙',title:'Veine dorée',text:'Un filon scintille dans la roche fendue — de l’or à portée de pioche.',
+      options:[
+        {label:'Extraire l’or', sub:'+30 Or', run(e){ g.inv.gold=(g.inv.gold||0)+30; e.result='Tu repars les poches pleines (+30 Or).'; e.resolved=true; }},
+        {label:'Creuser plus profond', sub:'+65 Or, mais risqué', run(e){ g.inv.gold=(g.inv.gold||0)+65; const d=eDamageRandom(10+depth); e.result=`La galerie cède à moitié — +65 Or, mais ${d}.`; e.resolved=true; }},
+        {label:'Laisser le filon', run(e){ e.result='Tu n’es pas venu pour l’or.'; e.resolved=true; }},
+      ]}),
+    ()=>({icon:'⚒',title:'Forge éteinte',text:'Une enclume froide et quelques braises encore vives sous la cendre.',
+      options:[
+        {label:'Rallumer la forge', sub:'25 Or → renforce un équipement', disabled:(g.inv.gold||0)<25, run(e){ g.inv.gold-=25; const list=allGearList(); if(list.length){ const it=list.sort((a,b)=>statSum(b.it)-statSum(a.it))[0].it; if((it.plus||0)<MAX_PLUS){ it.plus=(it.plus||0)+1; for(const k in it.stats) it.stats[k]+=Math.max(1,Math.round(it.stats[k]*0.25)); e.result=`Le métal chante — ${gearName(it)} renforcé.`; } else e.result='Ton meilleur équipement est déjà au maximum.'; } else e.result='Tu n’as rien à forger.'; e.resolved=true; }},
+        {label:'Récupérer la ferraille', sub:'+3 Fer', run(e){ e.result=eGainMat('fer',3)+', de quoi forger plus tard.'; e.resolved=true; }},
+      ]}),
+    ()=>({icon:'☠',title:'Embuscade',text:'Des silhouettes se faufilent entre les arbres morts. Elles t’ont vu.',
+      options:[
+        {label:'Tendre une contre-embuscade', sub:'Risqué — butin ou blessure', run(e){ if(chance(0.6)){ const it=eGiveGear(rollRarity(depth+1,false),depth); e.result=`Tu retournes le piège : ${it} récupéré !`; } else { const d=eDamageRandom(12+depth); e.result=`Le coup part de travers — ${d}.`; } e.resolved=true; }},
+        {label:'Décrocher en silence', sub:'+1 potion', run(e){ g.inv.potions++; e.result='Vous filez sans une égratignure (+1 potion).'; e.resolved=true; }},
+      ]}),
   ];
   // bias toward the relic altar when relics remain so artefacts actually appear
   const choice = (relicsLeft() && chance(0.3)) ? pool[pool.length-1] : pick(pool);
@@ -1283,10 +1352,12 @@ function encChoose(k){ const e=g.enc; if(!e||e.resolved) return; const o=e.optio
 
 /* ---------- marchand ---------- */
 function shopPrice(rar){ let base=[10,20,34,56][RARITIES.indexOf(rar)];
-  const disc=metaMods().shopDisc; if(disc) base=Math.max(1,Math.ceil(base*(1-disc))); return base; }
+  const disc=metaMods().shopDisc; if(disc) base=Math.max(1,Math.ceil(base*(1-disc)));
+  base=Math.round(base*perilMods().shopMul); return base; }
 function openShop(depth){
   const stock=[]; for(let k=0;k<3;k++){ const rar=rollRarity(depth+1,false); stock.push({it:genGear(rar,depth+1), cost:shopPrice(rar), sold:false}); }
-  g.shop={depth, stock, potionCost:Math.max(3,Math.ceil(7*(1-(metaMods().shopDisc||0)))), relicCost:Math.max(40,Math.ceil(75*(1-(metaMods().shopDisc||0))))}; ui.screen='shop'; render();
+  const sm=perilMods().shopMul;
+  g.shop={depth, stock, potionCost:Math.max(3,Math.ceil(7*(1-(metaMods().shopDisc||0))*sm)), relicCost:Math.max(40,Math.ceil(75*(1-(metaMods().shopDisc||0))*sm))}; ui.screen='shop'; render();
 }
 function buyGear(k){ const s=g.shop.stock[k]; if(!s||s.sold||(g.inv.gold||0)<s.cost) return; g.inv.gold-=s.cost; g.inv.gear.push(s.it); s.sold=true; toast(`Acheté : ${gearName(s.it)}.`); render(); }
 function buyPotion(){ if((g.inv.gold||0)<g.shop.potionCost) return; g.inv.gold-=g.shop.potionCost; g.inv.potions++; toast('Potion achetée.'); render(); }
@@ -1346,8 +1417,8 @@ function previewSkill(h,sk,baseLvl){
   switch(sk.kind){
     case 'st_dmg':{ if(!tgt) return null; let d=Math.round(atk*sk.mult*lm); if(!sk.ignoreDef) d=Math.max(1,d-Math.floor(tgt.def*(sk.magic?0.25:0.5))); return {t:'~'+Math.round(d*globalDmgMult(tgt))}; }
     case 'aoe_dmg':{ if(!tgt) return null; let d=Math.round(atk*sk.mult*lm); d=Math.max(1,d-Math.floor(tgt.def*(sk.magic?(pen?0.1:0.25):0.5))); return {t:'~'+Math.round(d*globalDmgMult(tgt))+' ×tous'}; }
-    case 'heal': return {t:'+'+Math.round(atk*sk.mult*lm*hm),c:'heal'};
-    case 'heal_all': return {t:'+'+Math.round(atk*sk.mult*lm*hm)+' ×tous',c:'heal'};
+    case 'heal': return {t:'+'+healScale(Math.round(atk*sk.mult*lm*hm)),c:'heal'};
+    case 'heal_all': return {t:'+'+healScale(Math.round(atk*sk.mult*lm*hm))+' ×tous',c:'heal'};
     case 'buff_atk': return {t:`+${Math.round(sk.pct*100)}% ATQ`,c:'heal'};
     case 'dot_all': return {t:Math.round(atk*0.5*lm)+'/t ×'+sk.turns};
     case 'dot_st': return {t:Math.round(atk*0.6*lm)+'/t'};
@@ -1359,7 +1430,8 @@ function previewActionDmg(h,act){
     const magic=CLASSES[h.cls].dmg==='magie'; let d=estPhysMagic(Math.round(heroAtk(h)),tgt.def,magic,h.cls==='mage'); return {t:'~'+Math.round(d*globalDmgMult(tgt))}; }
   if(act==='skillA') return previewSkill(h,CLASSES[h.cls].skill,h.skillLvl);
   if(act==='skillB') return previewSkill(h,CLASSES[h.cls].skillB,h.skillBLvl);
-  if(act==='potion') return {t:'+'+Math.round(heroStats(h).pvMax*0.5),c:'heal'};
+  if(act==='defense'){ const st=heroStats(h); return {t:'+'+Math.round(st.def*1.6+8)+'⛉',c:'shield'}; }
+  if(act==='potion') return {t:'+'+healScale(Math.round(heroStats(h).pvMax*0.5)),c:'heal'};
   return null;
 }
 function sellValue(it){ let v=[3,6,10,18][RARITIES.indexOf(it.rarity)]; v+=Math.round(v*0.4)*(it.plus||0); if(hasRelic('bourse_trouee')) v+=3; return v; }
@@ -1453,7 +1525,7 @@ const TAB_SVG={
   sac:'<path d="M7.5 8 V6 Q7.5 3.5 12 3.5 Q16.5 3.5 16.5 6 V8"/><path d="M5 8 H19 L18 20 H6 Z"/>',
 };
 function tabIc(k){ return svgIcon(TAB_SVG[k]||'', 'tab-svg'); }
-function actIc(k){ const spark='<path d="M12 3 L13.6 9.2 L20 11 L13.6 12.8 L12 19 L10.4 12.8 L4 11 L10.4 9.2 Z" fill="currentColor" stroke="none"/>'; const pot='<path d="M10 3 H14"/><path d="M11 3 V6 L8 11 V18 Q8 20 10 20 H14 Q16 20 16 18 V11 L13 6 V3"/><path d="M8.4 13 H15.6"/>'; const m={attaque:SLOT_SVG.arme, skill:spark, potion:pot}; return svgIcon(m[k]||'', 'aic'); }
+function actIc(k){ const spark='<path d="M12 3 L13.6 9.2 L20 11 L13.6 12.8 L12 19 L10.4 12.8 L4 11 L10.4 9.2 Z" fill="currentColor" stroke="none"/>'; const pot='<path d="M10 3 H14"/><path d="M11 3 V6 L8 11 V18 Q8 20 10 20 H14 Q16 20 16 18 V11 L13 6 V3"/><path d="M8.4 13 H15.6"/>'; const shieldP='<path d="M12 3 L19 6 V12 Q19 18 12 21 Q5 18 5 12 V6 Z"/>'; const m={attaque:SLOT_SVG.arme, skill:spark, potion:pot, defense:shieldP}; return svgIcon(m[k]||'', 'aic'); }
 function depthBar(d){ const p=Math.max(4,Math.min(100,Math.round(d/10*100))); return `<div class="depthbar" title="Profondeur ${d}/10"><i style="width:${p}%"></i></div>`; }
 function monGlyph(m){ return emb(SIG.mon[m.boss?'boss':m.tmpl]||SIG.mon._); }
 function heroGlyph(cls){ return emb(SIG.hero[cls]||SIG.hero._); }
@@ -1465,9 +1537,15 @@ function viewTitle(){
     <h1>MEUTE</h1>
     <p class="tag">Mène une escouade de trois chasseurs à travers dix vagues de monstres. Pille, fabrique, équipe — et abats le Béhémoth.</p>
     <div class="lore-strip">${emb(SIG.mon.loup)}${emb(SIG.mon.ogre)}${emb(SIG.mon.spectre)}${emb(SIG.mon.boss,'boss')}</div>
+    ${meta.perilMax>0?`<div class="peril-pick">
+      <div class="peril-h">Péril <b>${meta.peril||0}</b> / ${meta.perilMax}</div>
+      <div class="peril-chips">${Array.from({length:meta.perilMax+1},(_,k)=>`<button class="pchip2 ${k===(meta.peril||0)?'on':''}" data-peril="${k}">${k}</button>`).join('')}</div>
+      <div class="peril-desc">${perilDesc(meta.peril||0)}</div>
+    </div>`:''}
     <button class="cta" id="start">Nouvelle battue</button>
     <button class="btn2" id="codex">Codex des chasseurs</button>
     <button class="btn2" id="lair">Tanière de la meute${meta.trophies?` · ${meta.trophies} ◆`:''}</button>
+    <button class="btn2" id="sfx-toggle">Son ${meta.sfx===false?'🔇 Off':'🔊 On'}</button>
     ${meta.best?`<p class="rec">Record : vague ${meta.best} · ${meta.wins||0} victoire(s) · ${meta.runs||0} battue(s)</p>`:''}
     <details class="how"><summary>Comment jouer</summary><div>
       <b>Combat au tour par tour.</b> Chaque chasseur agit une fois par round : <b>Attaque</b>, ses <b>compétences</b> (avec un délai de recharge), ou une <b>potion</b>. Touche un monstre pour le cibler.<br><br>
@@ -1477,7 +1555,8 @@ function viewTitle(){
       <b>Élites & dangers.</b> Un monstre d’<b>élite</b> (enragé, blindé, véloce ou vorace) garde un butin supérieur. Méfie-toi des <b>Pustules</b> qui explosent en mourant et des <b>Veuves</b> qui empoisonnent. L’équipement rare peut porter une <b>propriété</b> (vol de vie, critique, recharge accélérée).<br><br>
 <b>Lis le terrain.</b> Sur chaque monstre, l’<b>intention</b> (⚔ dégâts, ✚ soin, ▲ rage, ✸ zone) annonce son prochain coup ; sous tes actions, l’aperçu <span class="k">~chiffre</span> indique les dégâts ou soins attendus.<br><br>
       <b>Or & forge.</b> Combats et reventes rapportent de l’<span class="k">Or ⊙</span> : dépense-le au marché pour acheter, ou à la <b>Forge</b> du camp pour renforcer tes équipements (jusqu’à +3). Au camp, chaque pièce indique si elle <span class="k">▲ améliore</span> ou <span class="k">▼ diminue</span> le chasseur.<br><br>
-      Raccourcis combat : <span class="k">1</span> attaque · <span class="k">2</span> compétence 1 · <span class="k">3</span> compétence 2 · <span class="k">4</span> potion.
+      <b>Défense & péril.</b> L’action <b>Défendre</b> donne un bouclier et réduit les dégâts du tour — idéale face à une <b>attaque de zone</b> annoncée. Après ta première victoire, monte le <b>Péril</b> au menu : ennemis plus coriaces, mais davantage de Trophées. Sur mobile, <b>touche une relique ou une spécialisation</b> pour voir sa description.<br><br>
+      Raccourcis combat : <span class="k">1</span> attaque · <span class="k">2</span> compétence 1 · <span class="k">3</span> compétence 2 · <span class="k">4</span> potion · <span class="k">5</span> défendre.
     </div></details>
   </div>`;
 }
@@ -1533,7 +1612,7 @@ function viewChoose(){
 function viewCombat(){
   const monRow=g.mons.map((m,i)=>{
     const pct=Math.max(0,Math.round(m.pv/m.pvMax*100)); const dead=m.pv<=0; const tgt=(i===ui.target&&!dead);
-    const stat=`${m.dot?'<span class="st st-dot" title="Brûlure">🔥</span>':''}${m.vuln>0?'<span class="st st-vuln" title="Vulnérable · +30% de dégâts subis">⤓</span>':''}`;
+    const stat=`${m.dot?`<span class="st st-dot" title="Poison/Brûlure · ${m.dot.dmg}/tour">🔥${m.dot.stacks>1?'×'+m.dot.stacks:''}</span>`:''}${m.vuln>0?'<span class="st st-vuln" title="Vulnérable · +30% de dégâts subis">⤓</span>':''}`;
     const intent=dead?'':`<div class="intent i-${(m.intent||{}).kind||'attack'}">${intentLabel(m)}</div>`;
     return `<button class="unit mon ${dead?'dead':''} ${tgt?'tgt':''} ${m.boss?'boss':''} ${m.elite?'elite':''}" id="mon-${i}" data-mon="${i}" ${dead?'disabled':''}>
       ${intent}
@@ -1546,7 +1625,7 @@ function viewCombat(){
   const hi=curHeroIdx();
   const heroRow=g.team.map((h,i)=>{
     const st=heroStats(h); const pct=Math.max(0,Math.round(h.pv/st.pvMax*100)); const down=h.pv<=0; const active=(i===hi&&!down);
-    const stat=`${(!down&&h.poison)?'<span class="st st-psn" title="Empoisonné">☠</span>':''}${(!down&&h.shield>0)?`<span class="st st-shield" title="Bouclier">⛉${h.shield}</span>`:''}${(!down&&h.vuln>0)?'<span class="st st-vuln" title="Vulnérable">⤓</span>':''}`;
+    const stat=`${(!down&&h.poison)?'<span class="st st-psn" title="Empoisonné">☠</span>':''}${(!down&&h.shield>0)?`<span class="st st-shield" title="Bouclier">⛉${h.shield}</span>`:''}${(!down&&h.guard>0)?'<span class="st st-guard" title="En garde · dégâts réduits">⛊</span>':''}${(!down&&h.vuln>0)?'<span class="st st-vuln" title="Vulnérable">⤓</span>':''}`;
     return `<div class="unit hero ${down?'down':''} ${active?'active':''} cls-${h.cls}" id="hero-${i}">
       <div class="portrait hero-portrait">${heroGlyph(h.cls)}</div>
       <div class="u-name">${h.nom}${down?'<span class="downtag">à terre</span>':''}</div>
@@ -1566,6 +1645,7 @@ function viewCombat(){
         <button class="act" data-act="attaque"><span class="act-ic">${actIc('attaque')}</span><span class="act-n">Attaque</span>${pa('attaque')}</button>
         <button class="act" data-act="skillA" ${h.cdA>0?'disabled':''}><span class="act-ic">${actIc('skill')}</span><span class="act-n">${c.skill.nom}${h.cdA>0?` ⟳${h.cdA}`:''}</span>${h.cdA>0?'':pa('skillA')}</button>
         ${h.skillBunlocked?`<button class="act" data-act="skillB" ${h.cdB>0?'disabled':''}><span class="act-ic">${actIc('skill')}</span><span class="act-n">${c.skillB.nom}${h.cdB>0?` ⟳${h.cdB}`:''}</span>${h.cdB>0?'':pa('skillB')}</button>`:''}
+        <button class="act" data-act="defense"><span class="act-ic">${actIc('defense')}</span><span class="act-n">Défendre</span>${pa('defense')}</button>
         <button class="act" data-act="potion" ${g.inv.potions<=0?'disabled':''}><span class="act-ic">${actIc('potion')}</span><span class="act-n">Potion${g.inv.potions>0?` ·${g.inv.potions}`:''}</span>${g.inv.potions>0?pa('potion'):''}</button>
       </div>
       <div class="who-gear"><span class="wg-stats">♥${Math.max(0,h.pv)}/${_st.pvMax} ⚔${_st.atk} ⛨${_st.def} ⚡${_st.vit}</span> · <span class="wg-load">${load}</span></div>
@@ -1662,7 +1742,7 @@ function perkBlock(i){ const h=g.team[i]; const arr=PERKS[h.cls]||[]; if(!arr.le
 }
 function perkTags(h){ const arr=PERKS[h.cls]||[]; const owned=(h.perks||[]).filter(id=>arr.find(x=>x.id===id));
   if(!owned.length) return `<div class="hc-skill"><span style="color:var(--faint);font-size:11.5px;">Aucune spécialisation — vois l’onglet <b style="color:var(--ember)">Talents</b></span></div>`;
-  return `<div class="hc-skill"><span style="display:flex;gap:5px;flex-wrap:wrap;">${owned.map(id=>{ const p=arr.find(x=>x.id===id); return `<span class="prop" title="${p.desc}">★ ${p.nom}</span>`; }).join('')}</span></div>`; }
+  return `<div class="hc-skill"><span style="display:flex;gap:5px;flex-wrap:wrap;">${owned.map(id=>{ const p=arr.find(x=>x.id===id); return `<span class="prop" data-inspect="perk:${h.cls}:${id}" title="${p.desc}">★ ${p.nom}</span>`; }).join('')}</span></div>`; }
 function talentsHot(){ return (g.team||[]).some((h,i)=>{ if(h.skillLvl<3&&canAfford(skillUpCost(h.skillLvl)))return true; if(!h.skillBunlocked&&canAfford(SKILLB_COST))return true; if(h.skillBunlocked&&h.skillBLvl<3&&canAfford(skillUpCost(h.skillBLvl)))return true; const arr=PERKS[h.cls]||[]; return arr.some(p=>!(h.perks||[]).includes(p.id)&&canAfford(p.cost)); }); }
 function talentBlock(label, name, desc, lvl, upBtn){
   return `<div class="tk"><div class="tk-h"><span class="tk-name">${name}</span><span class="tk-lv">${label}${lvl?` · niv.${lvl}`:''}</span></div>
@@ -1863,7 +1943,8 @@ function viewOver(){
     <h1>${win?'Battue accomplie':'Escouade décimée'}</h1>
     <p class="tag">${win?'Le Béhémoth s’effondre dans un dernier râle. La meute rentre, couverte de gloire et de cicatrices.':'Les monstres ont eu raison de vous. La forêt referme ses ombres sur vos traces.'}</p>
     <div class="result">Profondeur atteinte : <b>${ui.finalWave}</b> / 10</div>
-    <div class="troph-won">+${ui.earned||0} Trophées ◆ <span class="twn-sub">profondeur ${ui.finalWave}${ui.win?' + victoire':''}</span></div>
+    <div class="troph-won">+${ui.earned||0} Trophées ◆ <span class="twn-sub">profondeur ${ui.finalWave}${ui.win?' + victoire':''}${(meta.peril||0)?' · péril '+meta.peril:''}</span></div>
+    ${ui.perilUp?`<div class="peril-up">⚠ Nouveau <b>Péril ${meta.perilMax}</b> débloqué — relève le défi depuis le menu.</div>`:''}
     <button class="cta" id="again">Rejouer</button>
     <button class="btn2 wide" id="to-lair">Arbre de la meute · ${meta.trophies||0} ◆ à dépenser</button>
     <p class="rec">Record : profondeur ${meta.best} · ${meta.wins||0} victoire(s)</p>
@@ -1896,16 +1977,20 @@ function render(){
   else if(ui.screen==='camp') html=viewCamp();
   else if(ui.screen==='lair') html=viewLair();
   else if(ui.screen==='over') html=viewOver();
-  app.innerHTML=html;
+  app.innerHTML=html + inspectSheet();
   bind();
   flushFx();
 }
 function bindEach(sel,fn){ document.querySelectorAll(sel).forEach(el=>el.onclick=()=>fn(el)); }
 function bind(){
+  bindEach('[data-inspect]',el=>openInspect(el.dataset.inspect));
+  bindEach('[data-inspect-close]',el=>{ ui.inspect=null; render(); });
   if(ui.screen==='title'){
     const b=$('start'); if(b) b.onclick=()=>{ ui.screen='choose'; render(); };
     const cx=$('codex'); if(cx) cx.onclick=()=>{ ui.screen='codex'; ui.codexTab='chasseurs'; render(); };
     const lr=$('lair'); if(lr) lr.onclick=()=>{ ui.screen='lair'; render(); };
+    bindEach('[data-peril]',el=>{ meta.peril=+el.dataset.peril; save(); render(); });
+    const st=$('sfx-toggle'); if(st) st.onclick=()=>{ meta.sfx=(meta.sfx===false); save(); if(meta.sfx!==false) sfx('click'); render(); };
   }
   else if(ui.screen==='codex'){
     bindEach('[data-ctab]',el=>{ ui.codexTab=el.dataset.ctab; render(); });
@@ -1980,6 +2065,23 @@ function flushFx(){
   });
   ui._fx=[];
 }
+let _ac=null;
+function audio(){ if(_ac) return _ac; try{ _ac=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ _ac=null; } return _ac; }
+function sfx(type){ if(meta.sfx===false) return; const ac=audio(); if(!ac) return; try{
+  const t=ac.currentTime, o=ac.createOscillator(), g2=ac.createGain(); o.connect(g2); g2.connect(ac.destination);
+  const TB={hit:[170,0.08,'square'],crit:[150,0.16,'sawtooth'],heal:[540,0.16,'sine'],block:[300,0.12,'triangle'],death:[90,0.22,'sawtooth'],coin:[880,0.1,'square'],click:[430,0.035,'square'],win:[0,0.55,'triangle'],lose:[120,0.6,'sawtooth']};
+  const a=TB[type]||TB.click; const f=a[0], d=a[1]; o.type=a[2];
+  if(type==='win'){ o.frequency.setValueAtTime(523,t); o.frequency.setValueAtTime(659,t+0.15); o.frequency.setValueAtTime(784,t+0.3); }
+  else { o.frequency.setValueAtTime(f,t); if(type==='crit'||type==='death'||type==='lose') o.frequency.exponentialRampToValueAtTime(Math.max(40,f*0.5),t+d); }
+  g2.gain.setValueAtTime(0.0001,t); g2.gain.exponentialRampToValueAtTime(type==='click'?0.05:0.14,t+0.012); g2.gain.exponentialRampToValueAtTime(0.0001,t+d);
+  o.start(t); o.stop(t+d+0.03);
+}catch(e){} }
+function shake(){ try{ if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; const w=document.querySelector('.wrap'); if(!w) return; w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake'); setTimeout(()=>{ if(w) w.classList.remove('shake'); },360); }catch(e){} }
+function inspectSheet(){ if(!ui.inspect) return ''; const o=ui.inspect; return `<div class="isheet-back" data-inspect-close="1"></div><div class="isheet"><div class="ish-h"><span class="ish-ic">${o.icon||''}</span><b>${o.title}</b><button class="ish-x" data-inspect-close="1">✕</button></div><div class="ish-body">${o.html}</div></div>`; }
+function openInspect(key){ const parts=String(key).split(':'); const kind=parts[0];
+  if(kind==='relic'){ const r=relicById(parts[1]); if(r) ui.inspect={icon:`<span class="coin">${r.ic}</span>`,title:r.nom,html:`<p>${r.desc}</p>`}; }
+  else if(kind==='perk'){ const p=(PERKS[parts[1]]||[]).find(x=>x.id===parts[2]); if(p) ui.inspect={icon:'★',title:p.nom,html:`<p>${p.desc}</p><p class="ish-cost">Coût : ${costStr(p.cost)}</p>`}; }
+  render(); }
 let _toastT;
 function toast(msg){ const t=$('toast'); if(!t) return; t.textContent=msg; t.classList.add('show'); clearTimeout(_toastT); _toastT=setTimeout(()=>t.classList.remove('show'),2000); }
 
@@ -1990,6 +2092,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='2') heroAction('skillA');
   else if(e.key==='3') heroAction('skillB');
   else if(e.key==='4') heroAction('potion');
+  else if(e.key==='5') heroAction('defense');
 });
 
 /* boot */
