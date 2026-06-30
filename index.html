@@ -742,6 +742,12 @@ body{background:
 .tnode.soon{border-left-color:var(--bc);opacity:.7;}
 .tn-on{color:var(--bc);font-family:var(--mono);font-weight:700;}
 .tn-cost{color:var(--bc);}
+/* ===== TRANSITIONS & CONFETTI ===== */
+#app.fadein{animation:screenin .26s ease;}
+@keyframes screenin{from{opacity:0;transform:translateY(7px);}to{opacity:1;transform:none;}}
+.vfx-c{position:absolute;border-radius:2px;pointer-events:none;z-index:61;animation:confettifall linear forwards;}
+@keyframes confettifall{0%{transform:translate(0,0) rotate(0deg);opacity:1;}100%{transform:translate(var(--dx,0),106vh) rotate(var(--rot,360deg));opacity:.85;}}
+@media (prefers-reduced-motion: reduce){ #app.fadein{animation:none;} .vfx-c{display:none;} }
 
 /* ===== VFX & POLISH ===== */
 #flash{position:fixed;inset:0;z-index:58;pointer-events:none;opacity:0;transition:opacity .4s ease;mix-blend-mode:screen;}
@@ -1200,6 +1206,7 @@ function completeNode(){
   node.visited=true; g.pos={row:r,node:i};
   if(node.type==='boss' && node.depth>=WAVES){ gameOver(true); return; }
   g.team.forEach(h=>{ if(h.pv>0){ const b=heroStats(h).pvMax; h.lvl++; const a=heroStats(h).pvMax; h.pv+=Math.max(0,a-b); } });
+  try{ flashScreen('rgba(116,173,111,.16)'); sfx('heal'); }catch(e){}
   if(g.stats) g.stats.nodes++;
   saveRun();
   ui.screen='map'; render();
@@ -1268,6 +1275,7 @@ function startCombat(depth, kind){
   g.buffAtk=null; g.secondWind=false;
   ui.screen='combat'; ui.target=firstLivingMon(); ui._fx=[];
   beginRound();
+  if(kind==='boss'){ try{ flashScreen('rgba(208,89,77,.32)'); shake(); sfx('lose'); }catch(e){} }
 }
 function beginRound(){
   if(!anyHeroAlive()){ gameOver(false); return; }
@@ -1508,7 +1516,7 @@ function equip(itemId,heroIdx){
   g.inv.gear.splice(idx,1);
   const old=h.gear[sl]; h.gear[sl]=it; if(old) g.inv.gear.push(old);
   const mx=heroStats(h).pvMax; if(h.pv>mx) h.pv=mx;
-  toast(`${it.nom} équipé sur ${h.nom}.`); render();
+  sfx('block'); toast(`${it.nom} équipé sur ${h.nom}.`); render();
 }
 function unequip(heroIdx,sl){
   const h=g.team[heroIdx], it=h.gear[sl]; if(!it) return;
@@ -1663,9 +1671,16 @@ function optimMark(it,hi){ return bestHeroIdx(it)===hi
 function gearName(it){ return it.nom+((it.plus)?` +${it.plus}`:''); }
 const STAT_SYM={atk:'⚔',def:'⛨',pvMax:'♥',vit:'⚡'};
 function slotDelta(it,h){
-  const cur=h.gear[it.slot]; const a=it.stats||{}, b=(cur&&cur.stats)||{}; const parts=[];
-  ['atk','def','pvMax','vit'].forEach(k=>{ const d=(a[k]||0)-(b[k]||0); if(d) parts.push(`${d>0?'+':''}${d}${STAT_SYM[k]}`); });
-  const sc=itemScore(it,h)-(cur?itemScore(cur,h):0);
+  const sl=it.slot; const cur=h.gear[sl]||null; const keep=h.gear[sl];
+  h.gear[sl]=it; const A=heroStats(h);
+  h.gear[sl]=cur; const B=heroStats(h);
+  h.gear[sl]=keep;
+  const parts=[];
+  ['atk','def','pvMax','vit'].forEach(k=>{ const d=A[k]-B[k]; if(d) parts.push(`${d>0?'+':''}${d}${STAT_SYM[k]}`); });
+  const w=CLASS_WEIGHTS[h.cls]||CLASS_WEIGHTS.guerriere;
+  let sc=((A.atk-B.atk)/STAT_NORM.atk)*w.atk + ((A.def-B.def)/STAT_NORM.def)*w.def + ((A.pvMax-B.pvMax)/STAT_NORM.pvMax)*w.pvMax + ((A.vit-B.vit)/STAT_NORM.vit)*w.vit;
+  if(it.prop&&PROP_AFF[it.prop]) sc+=PROP_AFF[it.prop][h.cls]||0;
+  if(cur&&cur.prop&&PROP_AFF[cur.prop]) sc-=PROP_AFF[cur.prop][h.cls]||0;
   const dir=sc>0.06?'up':sc<-0.06?'down':'same';
   return {dir, arrow:dir==='up'?'▲':dir==='down'?'▼':'≈', parts, txt:parts.join(' '), hasCur:!!cur};
 }
@@ -2331,6 +2346,7 @@ function render(){
   else if(ui.screen==='over') html=viewOver();
   { const a=screenAccent(); try{ const r=document.documentElement.style; r.setProperty('--accent', a.c); r.setProperty('--accent-soft', a.s); }catch(e){} }
   app.innerHTML=html + inspectSheet();
+  { const key=ui.screen+'|'+(ui.tab||''); if(ui._lastKey!==key){ ui._lastKey=key; try{ app.classList.remove('fadein'); void app.offsetWidth; app.classList.add('fadein'); }catch(e){} } }
   bind();
   flushFx();
 }
@@ -2403,6 +2419,7 @@ function bind(){
     const bk=$('lair-back'); if(bk) bk.onclick=()=>{ ui.screen='title'; render(); };
   }
   else if(ui.screen==='over'){
+    if(ui.win) try{ confetti(); }catch(e){}
     const b=$('again'); if(b) b.onclick=()=>{ ui.screen='title'; render(); };
     const tl=$('to-lair'); if(tl) tl.onclick=()=>{ ui.screen='lair'; render(); };
   }
@@ -2414,7 +2431,7 @@ function flushFx(){
     const rc = f.cls==='heal'?'u-heal' : f.cls==='shield'?'u-block' : (f.cls==='dmg'||f.cls==='crit')?'u-hit' : '';
     if(rc){ el.classList.remove(rc); void el.offsetWidth; el.classList.add(rc); setTimeout(()=>el.classList.remove(rc),440); }
     if(f.cls==='death') burstAt(el,'var(--blood)',16);
-    else if(f.cls==='crit'){ burstAt(el,'var(--ember)',12); flashScreen('rgba(224,145,63,.16)'); }
+    else if(f.cls==='crit'){ burstAt(el,'var(--gold)',14); ringAt(el,'rgba(217,178,91,.9)'); flashScreen('rgba(224,145,63,.18)'); }
     else if(f.cls==='dmg') ringAt(el,'rgba(208,89,77,.75)');
     else if(f.cls==='heal') ringAt(el,'rgba(116,173,111,.75)');
     else if(f.cls==='shield') ringAt(el,'rgba(111,155,196,.8)');
@@ -2443,6 +2460,12 @@ function burstAt(el,color,n){ try{ const layer=$('fxlayer'); if(!layer||!el||!el
     setTimeout(()=>{ if(p.remove) p.remove(); },560); } }catch(e){} }
 function ringAt(el,color){ try{ const layer=$('fxlayer'); if(!layer||!el||!el.getBoundingClientRect) return; const r=el.getBoundingClientRect(); const ring=document.createElement('span'); ring.className='vfx-ring'; ring.style.left=(r.left+r.width/2)+'px'; ring.style.top=(r.top+r.height/2)+'px'; ring.style.borderColor=color; layer.appendChild(ring); _raf(()=>{ ring.style.transform='translate(-50%,-50%) scale(2.4)'; ring.style.opacity='0'; }); setTimeout(()=>{ if(ring.remove) ring.remove(); },440); }catch(e){} }
 function flashScreen(color){ try{ const f=$('flash'); if(!f) return; f.style.background=color; f.style.opacity='1'; _raf(()=>{ f.style.opacity='0'; }); }catch(e){} }
+function confetti(){ try{ const layer=$('fxlayer'); if(!layer) return; const W=(window.innerWidth||400); const cols=['#e0913f','#d9b25b','#ffd9a0','#d0594d','#a982cf'];
+  for(let k=0;k<48;k++){ const p=document.createElement('span'); p.className='vfx-c'; const sz=4+Math.random()*5;
+    p.style.left=(Math.random()*W)+'px'; p.style.top='-14px'; p.style.width=p.style.height=sz.toFixed(1)+'px'; p.style.background=cols[k%cols.length];
+    const dur=1.6+Math.random()*1.5; p.style.animationDuration=dur+'s'; p.style.animationDelay=(Math.random()*0.5).toFixed(2)+'s';
+    p.style.setProperty('--rot',(Math.random()*720-360).toFixed(0)+'deg'); p.style.setProperty('--dx',((Math.random()*2-1)*70).toFixed(0)+'px');
+    layer.appendChild(p); setTimeout(()=>{ if(p.remove) p.remove(); }, (dur+0.7)*1000); } }catch(e){} }
 function inspectSheet(){ if(!ui.inspect) return ''; const o=ui.inspect; return `<div class="isheet-back" data-inspect-close="1"></div><div class="isheet"><div class="ish-h"><span class="ish-ic">${o.icon||''}</span><b>${o.title}</b><button class="ish-x" data-inspect-close="1">✕</button></div><div class="ish-body">${o.html}</div></div>`; }
 function openInspect(key){ const parts=String(key).split(':'); const kind=parts[0];
   if(kind==='relic'){ const r=relicById(parts[1]); if(r) ui.inspect={icon:`<span class="coin">${r.ic}</span>`,title:r.nom,html:`<p>${r.desc}</p>`}; }
