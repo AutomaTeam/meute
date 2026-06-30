@@ -742,6 +742,22 @@ body{background:
 .tnode.soon{border-left-color:var(--bc);opacity:.7;}
 .tn-on{color:var(--bc);font-family:var(--mono);font-weight:700;}
 .tn-cost{color:var(--bc);}
+/* ===== COMBAT UI clarté ===== */
+.unit.mon{padding-top:10px;}
+.intent-banner{margin-top:8px;display:flex;align-items:center;justify-content:center;gap:5px;font-family:var(--mono);font-size:12.5px;font-weight:600;padding:4px 8px;border-radius:7px;border:1px solid var(--line2);background:var(--bg);}
+.intent-banner.i-attack{color:var(--blood);border-color:var(--blood-soft);background:rgba(208,89,77,.09);}
+.intent-banner.i-aoe{color:#ff8763;border-color:var(--blood);background:rgba(208,89,77,.16);}
+.intent-banner.i-heal{color:var(--heal);border-color:rgba(116,173,111,.4);background:rgba(116,173,111,.08);}
+.intent-banner.i-buff,.intent-banner.i-rally{color:var(--gold);border-color:rgba(217,178,91,.4);background:rgba(217,178,91,.08);}
+.intent-banner.i-venin,.intent-banner.i-wail{color:var(--amethyst);border-color:rgba(169,130,207,.4);background:rgba(169,130,207,.08);}
+.intent-banner.i-summon{color:var(--steel);border-color:rgba(111,155,196,.4);background:rgba(111,155,196,.08);}
+.mstats{font-family:var(--mono);font-size:10px;color:var(--faint);white-space:nowrap;}
+.mon-status{margin-top:5px;justify-content:flex-start;gap:6px;}
+.u-cd{font-family:var(--mono);font-size:10px;color:var(--ember);border:1px solid var(--ember-soft);border-radius:5px;padding:0 4px;}
+.unit.hero.active::after{content:'à toi';position:absolute;top:-8px;right:8px;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;background:var(--ember);color:var(--bg);padding:1px 7px;border-radius:8px;font-weight:700;}
+.turnwho{display:flex;align-items:center;gap:7px;}
+.tw-port{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--bg3);align-items:center;justify-content:center;}
+.tw-port svg{width:16px;height:16px;color:var(--ember);}
 /* ===== TRANSITIONS & CONFETTI ===== */
 #app.fadein{animation:screenin .26s ease;}
 @keyframes screenin{from{opacity:0;transform:translateY(7px);}to{opacity:1;transform:none;}}
@@ -1954,14 +1970,15 @@ function viewChoose(){
 function viewCombat(){
   const monRow=g.mons.map((m,i)=>{
     const pct=Math.max(0,Math.round(m.pv/m.pvMax*100)); const dead=m.pv<=0; const tgt=(i===ui.target&&!dead);
+    const kind=(m.intent||{}).kind||'attack';
     const stat=`${m.dot?`<span class="st st-dot" title="Poison/Brûlure · ${m.dot.dmg}/tour">🔥${m.dot.stacks>1?'×'+m.dot.stacks:''}</span>`:''}${m.vuln>0?'<span class="st st-vuln" title="Vulnérable · +30% de dégâts subis">⤓</span>':''}`;
-    const intent=dead?'':`<div class="intent i-${(m.intent||{}).kind||'attack'}">${intentLabel(m)}</div>`;
     return `<button class="unit mon ${dead?'dead':''} ${tgt?'tgt':''} ${m.boss?'boss':''} ${m.elite?'elite':''} ${m.enraged?'enraged':''}" id="mon-${i}" data-mon="${i}" ${dead?'disabled':''}>
-      ${intent}
       <div class="portrait mon-portrait">${monGlyph(m)}</div>
       <div class="u-name">${m.nom}${m.boss?'<span class="boss-tag">BOSS</span>':''}${m.elite?`<span class="elite-tag">${m.eliteNom}</span>`:''}</div>
       <div class="u-bar mon"><i style="width:${pct}%"></i></div>
-      <div class="u-foot"><span class="num">${Math.max(0,m.pv)}/${m.pvMax}</span><span class="statline">${stat}</span></div>
+      <div class="u-foot"><span class="num">${Math.max(0,m.pv)}/${m.pvMax}</span><span class="mstats">⚔${m.atk} ⛨${m.def}</span></div>
+      ${stat?`<div class="statline mon-status">${stat}</div>`:''}
+      ${dead?'':`<div class="intent-banner i-${kind}" title="Prochain coup de l’ennemi">${intentLabel(m)}</div>`}
     </button>`;
   }).join('');
   const hi=curHeroIdx();
@@ -1972,7 +1989,7 @@ function viewCombat(){
       <div class="portrait hero-portrait">${heroGlyph(h.cls)}</div>
       <div class="u-name">${h.nom}${down?'<span class="downtag">à terre</span>':''}</div>
       <div class="u-bar hero"><i style="width:${pct}%"></i></div>
-      <div class="u-foot"><span class="num">${Math.max(0,h.pv)}/${st.pvMax}</span><span class="statline">${stat}<span class="u-cd">${h.cdA>0?'⟳'+h.cdA:'⟳'}</span></span></div>
+      <div class="u-foot"><span class="num">${Math.max(0,h.pv)}/${st.pvMax}</span><span class="statline">${stat}${h.cdA>0?`<span class="u-cd">⟳${h.cdA}</span>`:''}</span></div>
     </div>`;
   }).join('');
   let actions='';
@@ -1982,7 +1999,7 @@ function viewCombat(){
     const pa=a=>{ const p=previewActionDmg(h,a); return (p&&p.t)?`<small class="act-dmg ${p.c||''}">${p.t}</small>`:''; };
     const load=['arme','armure','talisman'].map(sl=>{ const it=h.gear[sl]; return it?`<b>${gearName(it)}</b>`:'—'; }).join(' · ');
     actions=`<div class="turnbar">
-      <div class="turnwho">Au tour de <b>${h.nom}</b>${buffNote}</div>
+      <div class="turnwho"><span class="tw-port">${heroGlyph(h.cls)}</span>Au tour de <b>${h.nom}</b>${buffNote}</div>
       <div class="actions">
         <button class="act" data-act="attaque"><span class="act-ic">${actIc('attaque')}</span><span class="act-n">Attaque</span>${pa('attaque')}</button>
         <button class="act" data-act="skillA" ${h.cdA>0?'disabled':''}><span class="act-ic">${actIc('skill')}</span><span class="act-n">${c.skill.nom}${h.cdA>0?` ⟳${h.cdA}`:''}</span>${h.cdA>0?'':pa('skillA')}</button>
