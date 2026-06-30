@@ -816,12 +816,17 @@ body{background:
 
 /* ============================================================ UTILS */
 const $=id=>document.getElementById(id);
-const rand=(a,b)=>a+Math.random()*(b-a);
-const rint=(a,b)=>Math.floor(a+Math.random()*(b-a+1));
-const pick=a=>a[Math.floor(Math.random()*a.length)];
-const chance=p=>Math.random()<p;
+let RNG=Math.random; let g_seedStr=null;
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function strHash(s){ s=String(s); let h=2166136261>>>0; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function seedRNG(seedStr){ g_seedStr=seedStr; RNG=mulberry32(strHash(seedStr)); }
+function unseedRNG(){ g_seedStr=null; RNG=Math.random; }
+const rand=(a,b)=>a+RNG()*(b-a);
+const rint=(a,b)=>Math.floor(a+RNG()*(b-a+1));
+const pick=a=>a[Math.floor(RNG()*a.length)];
+const chance=p=>RNG()<p;
 const clampi=(v,a,b)=>Math.max(a,Math.min(b,v));
-function weightedPick(w){ let t=0; for(const k in w) t+=w[k]; let r=Math.random()*t; for(const k in w){ r-=w[k]; if(r<=0) return k; } return Object.keys(w)[0]; }
+function weightedPick(w){ let t=0; for(const k in w) t+=w[k]; let r=RNG()*t; for(const k in w){ r-=w[k]; if(r<=0) return k; } return Object.keys(w)[0]; }
 
 const MARK='<svg class="claw" viewBox="0 0 24 24"><path d="M6 3c1.1 6 1.1 11.5 0 18M12 2.4c1.1 6.4 1.1 12 0 18.6M18 3c1.1 6 1.1 11.5 0 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
 
@@ -880,6 +885,9 @@ const MONSTERS={
   veuve:{nom:'Veuve',pv:18,atk:8,def:1,vit:10,loot:['croc','herbe'],trait:'Venimeuse',desc:'Sa morsure empoisonne : la cible perd des PV pendant 3 rounds.'},
   totemiste:{nom:'Totémiste',pv:24,atk:5,def:2,vit:5,loot:['os','essence'],trait:'Meneur',desc:'Enrage ses alliés et décuple leur attaque. À neutraliser en premier.'},
   pustule:{nom:'Pustule',pv:26,atk:6,def:1,vit:4,loot:['cuir','essence'],trait:'Explosif',desc:'En mourant, éclate et blesse toute l’escouade. Achève-la à distance… ou prépare-toi.'},
+  banshee:{nom:'Hurleuse',pv:24,atk:9,def:1,vit:8,magic:true,loot:['croc','essence'],trait:'Hurlante',desc:'Son cri brise les gardes : la cible devient vulnérable aux coups suivants.'},
+  golem:{nom:'Colosse de pierre',pv:52,atk:8,def:13,vit:2,loot:['os','fer'],trait:'Colossal',desc:'Carapace de roche — l’acier glisse dessus. Seule la magie mord vraiment.'},
+  necromancien:{nom:'Nécromancien',pv:28,atk:7,def:2,vit:5,magic:true,loot:['os','essence'],trait:'Invocateur',desc:'Relève des servants tant qu’il respire. À faire taire en premier.'},
   behemoth:{nom:'Béhémoth',pv:60,atk:15,def:5,vit:4,boss:true,loot:['os','fer','essence'],trait:'Boss',desc:'La terreur des terres mortes. Frappe parfois toute l’escouade d’un coup.'},
 };
 const MODIFIERS={
@@ -926,7 +934,8 @@ function relicBar(){ if(!g.relics||!g.relics.length) return ''; return `<div cla
 function monPool(w){
   if(w<=2) return ['gobelin','loup','vipere'];
   if(w<=5) return ['gobelin','loup','vipere','tatou','spectre','nuee','veuve'];
-  return ['loup','ogre','tatou','spectre','nuee','vipere','veuve','totemiste','pustule'];
+  if(w<=20) return ['loup','ogre','tatou','spectre','nuee','vipere','veuve','totemiste','pustule','banshee','golem'];
+  return ['ogre','tatou','spectre','nuee','veuve','totemiste','pustule','banshee','golem','necromancien'];
 }
 
 const RECIPES=[
@@ -1125,15 +1134,16 @@ const NODE={
   boss:{icon:'☠',label:'Béhémoth'},
 };
 const RUN_V=1;
-function saveRun(){ if(!g) return; try{ const o={team:g.team,inv:g.inv,map:g.map,pos:g.pos,relics:g.relics,depthReached:g.depthReached,peril:g.peril,restedThisCamp:g.restedThisCamp,lastLoot:g.lastLoot,stats:g.stats,_v:RUN_V}; localStorage.setItem('meute_run',JSON.stringify(o)); }catch(e){} }
+function saveRun(){ if(!g) return; try{ const o={team:g.team,inv:g.inv,map:g.map,pos:g.pos,relics:g.relics,depthReached:g.depthReached,peril:g.peril,restedThisCamp:g.restedThisCamp,lastLoot:g.lastLoot,stats:g.stats,seed:g.seed,_v:RUN_V}; localStorage.setItem('meute_run',JSON.stringify(o)); }catch(e){} }
 function loadRun(){ try{ const o=JSON.parse(localStorage.getItem('meute_run')||'null'); if(!o||o._v!==RUN_V||!o.team) return null; return o; }catch(e){ return null; } }
 function hasRun(){ return !!loadRun(); }
 function clearRun(){ try{ localStorage.removeItem('meute_run'); }catch(e){} }
-function resumeRun(){ const o=loadRun(); if(!o){ toast('Aucune battue à reprendre.'); render(); return; } g=o; g.mons=[]; g.enc=null; g.shop=null; g.queue=null; g.buffAtk=null; g.stats=g.stats||{kills:0,gold:0,crits:0,nodes:0}; ui.screen='map'; ui.target=0; render(); }
-function newRun(thirdClass){
+function resumeRun(){ const o=loadRun(); if(!o){ toast('Aucune battue à reprendre.'); render(); return; } g=o; g.mons=[]; g.enc=null; g.shop=null; g.queue=null; g.buffAtk=null; g.stats=g.stats||{kills:0,gold:0,crits:0,nodes:0}; if(g.seed){ seedRNG(g.seed); } else { unseedRNG(); } ui.screen='map'; ui.target=0; render(); }
+function newRun(thirdClass, seed){
+  if(seed){ seedRNG(seed); } else { unseedRNG(); }
   g={ team:[ makeHero('guerriere'), makeHero('archere'), makeHero(thirdClass) ],
       mons:[], inv:{mats:{cuir:0,croc:0,os:0,fer:0,essence:0,herbe:0}, gear:[], potions:1, gold:0},
-      lastLoot:null, buffAtk:null, log:[], depthReached:0, relics:[], stats:{kills:0,gold:0,crits:0,nodes:0} };
+      lastLoot:null, buffAtk:null, log:[], depthReached:0, relics:[], stats:{kills:0,gold:0,crits:0,nodes:0}, seed:seed||null };
   const M=metaMods();
   g.inv.potions+=M.potions;
   g.inv.gold+=(M.startGold||0);
@@ -1170,7 +1180,7 @@ function genMap(){
     const cur=rows[r], nxt=rows[r+1];
     cur.forEach(a=>{
       const cand=nxt.map((b,bi)=>({bi,d:Math.abs(b.slot-a.slot)})).sort((x,y)=>x.d-y.d);
-      const k=Math.min(cand.length, Math.random()<0.45?2:1);
+      const k=Math.min(cand.length, RNG()<0.45?2:1);
       a.next=cand.slice(0,k).map(c=>c.bi);
     });
     nxt.forEach((b,bi)=>{ if(!cur.some(a=>a.next.includes(bi))){ let best=0,bd=99; cur.forEach((a,ai)=>{ const d=Math.abs(a.slot-b.slot); if(d<bd){bd=d;best=ai;} }); cur[best].next.push(bi); } });
@@ -1321,6 +1331,8 @@ function decideIntent(m,i){
   if(m.boss && !m.enraged && m.pv>0 && m.pv < m.pvMax*0.5){ m.enraged=true; m.atk=Math.round(m.atk*1.35); fx('mon-'+i,'FURIE','crit'); clog(`${m.nom} entre en furie !`); }
   if(m.heal){ const w=g.mons.some((x,j)=>j!==i && x.pv>0 && x.pv<x.pvMax); if(w){ m.intent={kind:'heal'}; return; } }
   if(m.tmpl==='totemiste'){ const a=g.mons.some(x=>x!==m && x.pv>0 && !x.enraged); if(a){ m.intent={kind:'buff'}; return; } }
+  if(m.tmpl==='banshee' && chance(0.4) && g.team.some(h=>h.pv>0 && !(h.vuln>0))){ m.intent={kind:'wail'}; return; }
+  if(m.tmpl==='necromancien' && g.mons.filter(x=>x.pv>0).length<4 && chance(0.45)){ m.intent={kind:'summon'}; return; }
   if(m.boss){ const enr=m.enraged;
     if(m.champ==='venin'){ m.intent=chance(0.45)?{kind:'venin'}:{kind:'attack'}; return; }
     if(m.champ==='meute'){ const canRally=g.mons.some(x=>x!==m && x.pv>0 && !x.enraged); m.intent=(canRally&&chance(0.45))?{kind:'rally'}:(chance(enr?0.45:0.28)?{kind:'aoe'}:{kind:'attack'}); return; }
@@ -1435,6 +1447,15 @@ function resolveMon(m,i){
     const aIdx=g.mons.findIndex(x=>x!==m && x.pv>0 && !x.enraged);
     if(aIdx>=0){ const a=g.mons[aIdx]; a.enraged=true; a.atk=Math.round(a.atk*1.3); fx('mon-'+aIdx,'▲','crit'); clog(`${m.nom} galvanise ${a.nom} !`); return; }
   }
+  if(it.kind==='wail'){
+    const l0=g.team.map((h,hi)=>({h,hi})).filter(o=>o.h.pv>0); if(!l0.length) return;
+    l0.sort((a,b)=>a.h.pv-b.h.pv); const tt=l0[0]; tt.h.vuln=Math.max(tt.h.vuln||0,2);
+    const dd=computeDmg(Math.round(m.atk*0.5),heroStats(tt.h).def,true); applyHeroDamage(tt.h,tt.hi,dd);
+    fx('hero-'+tt.hi,'⤓','crit'); clog(`${m.nom} hurle — ${tt.h.nom} devient vulnérable !`); return;
+  }
+  if(it.kind==='summon'){
+    if(g.mons.length<6){ const nm=makeMon(pick(['loup','gobelin','vipere']),g.depth||5); g.mons.push(nm); clog(`${m.nom} relève un servant !`); return; }
+  }
   const liv=g.team.map((h,hi)=>({h,hi})).filter(o=>o.h.pv>0);
   if(!liv.length) return;
   liv.sort((a,b)=>a.h.pv-b.h.pv);
@@ -1499,7 +1520,7 @@ function gameOver(win){
   if(g&&g.stats) meta.kills=(meta.kills||0)+(g.stats.kills||0);
   const newU=checkUnlocks(); ui.unlocked=newU.map(u=>u.nom);
   save(); sfx(win?'win':'lose');
-  ui.summary=(g&&g.stats)?{kills:g.stats.kills,gold:g.stats.gold,crits:g.stats.crits,relics:(g.relics||[]).length,peril:meta.peril||0}:null;
+  ui.summary=(g&&g.stats)?{kills:g.stats.kills,gold:g.stats.gold,crits:g.stats.crits,relics:(g.relics||[]).length,peril:meta.peril||0}:null; ui.seed=(g&&g.seed)?g.seed:null;
   clearRun();
   ui.screen='over'; ui.win=win; ui.finalWave=reached; ui.earned=earned; render();
 }
@@ -1747,6 +1768,8 @@ function intentLabel(m){
   if(k==='buff') return '▲ rage';
   if(k==='venin') return '☠ venin';
   if(k==='rally') return '▲ rage';
+  if(k==='wail') return '⤓ cri';
+  if(k==='summon') return '☥ invoque';
   if(k==='aoe') return `✸ ${previewHeroDmg(m,true)}`;
   const extra=(m.tmpl==='veuve'?' <span class="it-x">☠</span>':'')+(m.elite==='veloce'?' <span class="it-x">×2</span>':'');
   const big=(m.intent||{}).big;
@@ -1766,6 +1789,9 @@ const SIG={
     totemiste:'<rect x="7" y="4" width="10" height="16" rx="1.5"/><path d="M8.5 9.5 L10 11"/><path d="M15.5 9.5 L14 11"/><circle cx="9.7" cy="10.2" r="0.8" fill="currentColor" stroke="none"/><circle cx="14.3" cy="10.2" r="0.8" fill="currentColor" stroke="none"/><path d="M10 14.5 Q12 16.5 14 14.5"/><path d="M9 17.5 H15"/>',
     pustule:'<path d="M5 13 Q4 7 9 6 Q12 3.5 16 6 Q21 8 19 14 Q18 20 12 20 Q6 20 5 13 Z"/><circle cx="10" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="14.2" cy="13" r="1.2" fill="currentColor" stroke="none"/><circle cx="13.2" cy="9" r="0.8" fill="currentColor" stroke="none"/>',
     boss:'<path d="M3.5 6 Q8.5 5 9 9.5"/><path d="M20.5 6 Q15.5 5 15 9.5"/><path d="M6 9.5 Q12 6 18 9.5 Q19 15 14 18 L12 20 L10 18 Q5 15 6 9.5 Z"/><path d="M8.5 11.5 L10.5 13.5 L8.5 14.5 Z" fill="currentColor" stroke="none"/><path d="M15.5 11.5 L13.5 13.5 L15.5 14.5 Z" fill="currentColor" stroke="none"/><path d="M10 17 H14"/>',
+    banshee:'<path d="M6 20 V11 Q6 4 12 4 Q18 4 18 11 V20 L16 18 L14 20 L12 18 L10 20 L8 18 Z"/><circle cx="9.5" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="10" r="1.2" fill="currentColor" stroke="none"/><ellipse cx="12" cy="15.5" rx="1.8" ry="2.6"/>',
+    golem:'<path d="M5 7.5 H19 V20 H5 Z"/><path d="M5 12.5 H19"/><path d="M12 7.5 V20"/><circle cx="8.5" cy="10" r="0.8" fill="currentColor" stroke="none"/><circle cx="15.5" cy="10" r="0.8" fill="currentColor" stroke="none"/><path d="M8 16.5 H10"/><path d="M14 16.5 H16"/>',
+    necromancien:'<path d="M7.5 20 Q7.5 6 12 4.5 Q16.5 6 16.5 20 Z"/><circle cx="12" cy="10" r="2.4"/><path d="M10.8 9.4 a0.5 0.5 0 0 1 0.6 0 M12.6 9.4 a0.5 0.5 0 0 1 0.6 0"/><path d="M17.5 8 V20"/><path d="M17.5 8 L19 6.5"/>',
     _:'<path d="M12 4 L20 12 L12 20 L4 12 Z"/>'
   },
   hero:{
@@ -1852,6 +1878,7 @@ function viewTitle(){
       <div class="peril-desc">${perilDesc(meta.peril||0)}</div>
     </div>`:''}
     ${hasRun()?`<button class="cta" id="resume">Reprendre la battue ▸</button><button class="btn2" id="start">Nouvelle battue</button>`:`<button class="cta" id="start">Nouvelle battue</button>`}
+    <button class="btn2" id="daily">🗓 Run du jour (même carte pour tous)</button>
     <button class="btn2" id="codex">Codex des chasseurs</button>
     <button class="btn2" id="lair">Tanière de la meute${meta.trophies?` · ${meta.trophies} ◆`:''}</button>
     <button class="btn2" id="sfx-toggle">Son ${meta.sfx===false?'🔇 Off':'🔊 On'}</button>
@@ -2302,6 +2329,7 @@ function viewOver(){
     ${ui.perilUp?`<div class="peril-up">⚠ Nouveau <b>Péril ${meta.perilMax}</b> débloqué — relève le défi depuis le menu.</div>`:''}
     ${ui.summary?`<div class="run-summary"><div class="rs-h">Bilan de la battue</div><div class="rs-grid"><div><b>${ui.summary.kills}</b><span>monstres abattus</span></div><div><b>${ui.summary.gold}</b><span>Or amassé</span></div><div><b>${ui.summary.crits}</b><span>coups critiques</span></div><div><b>${ui.summary.relics}</b><span>reliques scellées</span></div></div></div>`:''}
     ${(ui.unlocked&&ui.unlocked.length)?`<div class="peril-up">★ Nouveau déblocage : <b>${ui.unlocked.join(' · ')}</b></div>`:''}
+    ${ui.seed?`<p class="rec" style="color:var(--ember)">Graine : ${ui.seed} — partage-la pour défier quelqu’un sur la même carte.</p>`:''}
     <button class="cta" id="again">Rejouer</button>
     <button class="btn2 wide" id="to-lair">Arbre de la meute · ${meta.trophies||0} ◆ à dépenser</button>
     <p class="rec">Record : profondeur ${meta.best} · ${meta.wins||0} victoire(s)</p>
@@ -2356,7 +2384,8 @@ function bind(){
   bindEach('[data-inspect-close]',el=>{ ui.inspect=null; render(); });
   bindEach('[data-hub]',el=>{ const d=el.dataset.hub; if(d==='map'){ ui.screen='map'; } else { ui.screen='camp'; ui.tab=d; } try{window.scrollTo(0,0);}catch(e){} render(); });
   if(ui.screen==='title'){
-    const b=$('start'); if(b) b.onclick=()=>{ ui.screen='choose'; render(); };
+    const b=$('start'); if(b) b.onclick=()=>{ ui.pendingSeed=null; ui.screen='choose'; render(); };
+    const dl=$('daily'); if(dl) dl.onclick=()=>{ ui.pendingSeed='jour-'+new Date().toISOString().slice(0,10); ui.screen='choose'; render(); };
     const cx=$('codex'); if(cx) cx.onclick=()=>{ ui.screen='codex'; ui.codexTab='chasseurs'; render(); };
     const lr=$('lair'); if(lr) lr.onclick=()=>{ ui.screen='lair'; render(); };
     const rs=$('resume'); if(rs) rs.onclick=()=>resumeRun();
@@ -2367,7 +2396,7 @@ function bind(){
     bindEach('[data-ctab]',el=>{ ui.codexTab=el.dataset.ctab; render(); });
     const bk=$('cx-back'); if(bk) bk.onclick=()=>{ ui.screen='title'; render(); };
   }
-  else if(ui.screen==='choose'){ bindEach('[data-pick]',el=>newRun(el.dataset.pick)); }
+  else if(ui.screen==='choose'){ bindEach('[data-pick]',el=>newRun(el.dataset.pick, ui.pendingSeed||null)); }
   else if(ui.screen==='map'){
     bindEach('[data-node]',el=>{ const [r,i]=el.dataset.node.split(':'); chooseNode(+r,+i); });
     const oc=$('open-camp'); if(oc) oc.onclick=()=>{ ui.screen='camp'; render(); };
