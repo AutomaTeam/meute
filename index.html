@@ -523,6 +523,22 @@ button.unit:hover:not(:disabled){border-color:var(--line2);}
 .lore-strip svg.emb{width:26px;height:26px;color:var(--faint);opacity:.62;transition:.2s;}
 .lore-strip svg.emb.boss{color:var(--blood);opacity:.8;}
 .lore-strip:hover svg.emb{opacity:.85;}
+/* ===== NAV PERSISTANTE (hub) ===== */
+.hubnav{position:sticky;bottom:0;z-index:30;display:flex;gap:2px;margin-top:16px;
+  padding:5px 4px max(6px,env(safe-area-inset-bottom));border-radius:14px 14px 0 0;
+  background:linear-gradient(180deg,rgba(19,18,16,.55),rgba(19,18,16,.98));backdrop-filter:blur(9px);
+  border:1px solid var(--line2);border-bottom:none;box-shadow:0 -12px 34px rgba(0,0,0,.55);}
+.hb{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;
+  background:none;border:none;color:var(--faint);font-family:var(--sans);font-size:11px;letter-spacing:.02em;
+  padding:7px 2px 4px;border-radius:11px;transition:.15s;min-height:54px;}
+.hb .hb-ic{display:flex;color:var(--faint);transition:.15s;}
+.hb .hb-svg{width:23px;height:23px;vertical-align:0;}
+.hb:hover{color:var(--dim);}
+.hb:hover .hb-ic{color:var(--dim);}
+.hb.on{color:var(--hc);background:rgba(255,255,255,.05);}
+.hb.on .hb-ic{color:var(--hc);filter:drop-shadow(0 0 6px var(--hc));}
+.hb.on::after{content:'';position:absolute;top:-6px;left:26%;right:26%;height:3px;border-radius:2px;background:var(--hc);box-shadow:0 0 8px var(--hc);}
+.hb-l .hot{font-size:8px;vertical-align:middle;color:var(--ember);}
 
 /* ====== UI/UX PASS : mobile, sticky actions, icônes ====== */
 .depthbar{height:4px;border-radius:3px;background:rgba(232,221,201,.08);overflow:hidden;margin:-4px 0 12px;}
@@ -1924,17 +1940,25 @@ function resourceStrip(){
   const mats=MATS.map(m=>`<span class="chip">${matIcon(m)} ${MAT_LABEL[m]} ·${g.inv.mats[m]||0}</span>`).join('');
   return `<div class="strip">${mats}<span class="chip">${potionIcon()} Potion ·${g.inv.potions}</span><span class="chip gold">${goldIcon()} Or ·${g.inv.gold||0}</span></div>`;
 }
+const ICON_MAP_SVG='<path d="M9 4 L3 7 V20 L9 17 L15 20 L21 17 V4 L15 7 Z"/><path d="M9 4 V17"/><path d="M15 7 V20"/>';
+function hubNav(){
+  const inCamp=ui.screen==='camp'; const t=ui.tab;
+  const item=(id,col,label,svg,active,hot)=>`<button class="hb ${active?'on':''}" data-hub="${id}" style="--hc:${col}"><span class="hb-ic">${svgIcon(svg,'hb-svg')}</span><span class="hb-l">${label}${hot?' <span class="hot">●</span>':''}</span></button>`;
+  return `<nav class="hubnav">
+    ${item('map','var(--ember)','Carte',ICON_MAP_SVG, ui.screen==='map')}
+    ${item('equipe','var(--steel)','Équipe',TAB_SVG.equipe, inCamp&&t==='equipe')}
+    ${item('talents','var(--amethyst)','Talents',TAB_SVG.talents, inCamp&&t==='talents', talentsHot())}
+    ${item('forge','var(--ember)','Forge',TAB_SVG.forge, inCamp&&t==='forge')}
+    ${item('sac','var(--gold)','Sac',TAB_SVG.sac, inCamp&&t==='sac')}
+  </nav>`;
+}
 function viewCamp(){
-  return `${topBar('Camp')}
+  const title = ui.tab==='equipe'?'Équipe':ui.tab==='talents'?'Talents':ui.tab==='forge'?'Forge':'Sac';
+  return `${topBar(title)}
+    ${partyStrip()}
     ${resourceStrip()}
-    <div class="tabs camptabs">
-      <button class="tab ${ui.tab==='equipe'?'on':''}" data-tab="equipe"><span class="tab-ic">${tabIc('equipe')}</span><span class="tab-l">Équipe</span></button>
-      <button class="tab ${ui.tab==='talents'?'on':''}" data-tab="talents"><span class="tab-ic">${tabIc('talents')}</span><span class="tab-l">Talents${talentsHot()?' <span class="hot">●</span>':''}</span></button>
-      <button class="tab ${ui.tab==='forge'?'on':''}" data-tab="forge"><span class="tab-ic">${tabIc('forge')}</span><span class="tab-l">Forge</span></button>
-      <button class="tab ${ui.tab==='sac'?'on':''}" data-tab="sac"><span class="tab-ic">${tabIc('sac')}</span><span class="tab-l">Sac</span></button>
-    </div>
     <div class="tabbody">${ui.tab==='equipe'?campEquipe():ui.tab==='talents'?campTalents():ui.tab==='forge'?campForge():campSac()}</div>
-    <button class="cta sticky-cta" id="map-back">◂ Retour à la carte</button>`;
+    ${hubNav()}`;
 }
 function campEquipe(){
   const cards=g.team.map((h,i)=>{
@@ -2008,7 +2032,7 @@ function perkBlock(i){ const h=g.team[i]; const arr=PERKS[h.cls]||[]; if(!arr.le
 function perkTags(h){ const arr=PERKS[h.cls]||[]; const owned=(h.perks||[]).filter(id=>arr.find(x=>x.id===id));
   if(!owned.length) return `<div class="hc-skill"><span style="color:var(--faint);font-size:11.5px;">Aucune spécialisation — vois l’onglet <b style="color:var(--ember)">Talents</b></span></div>`;
   return `<div class="hc-skill"><span style="display:flex;gap:5px;flex-wrap:wrap;">${owned.map(id=>{ const p=arr.find(x=>x.id===id); return `<span class="prop" data-inspect="perk:${h.cls}:${id}" title="${p.desc}">★ ${p.nom}</span>`; }).join('')}</span></div>`; }
-function talentsHot(){ return (g.team||[]).some((h,i)=>{ if(h.skillLvl<3&&canAfford(skillUpCost(h.skillLvl)))return true; if(!h.skillBunlocked&&canAfford(SKILLB_COST))return true; if(h.skillBunlocked&&h.skillBLvl<3&&canAfford(skillUpCost(h.skillBLvl)))return true; const arr=PERKS[h.cls]||[]; return arr.some(p=>!(h.perks||[]).includes(p.id)&&canAfford(p.cost)); }); }
+function talentsHot(){ return ((g&&g.team)||[]).some((h,i)=>{ if(h.skillLvl<3&&canAfford(skillUpCost(h.skillLvl)))return true; if(!h.skillBunlocked&&canAfford(SKILLB_COST))return true; if(h.skillBunlocked&&h.skillBLvl<3&&canAfford(skillUpCost(h.skillBLvl)))return true; const arr=PERKS[h.cls]||[]; return arr.some(p=>!(h.perks||[]).includes(p.id)&&canAfford(p.cost)); }); }
 function talentBlock(label, name, desc, lvl, upBtn){
   return `<div class="tk"><div class="tk-h"><span class="tk-name">${name}</span><span class="tk-lv">${label}${lvl?` · niv.${lvl}`:''}</span></div>
     <div class="tk-desc">${desc}</div>${upBtn||''}</div>`;
@@ -2130,7 +2154,7 @@ function viewMap(){
     ${banner}
     <div class="map-hint">${hint}</div>
     <div class="mapwrap">${edgesSvg}${rowsHtml}</div>
-    <button class="btn2 sticky-bot" id="open-camp">Camp — équipe · talents · forge · sac</button>`;
+    ${hubNav()}`;
 }
 function viewEncounter(){
   const e=g.enc; const lbl=NODE[g.map.rows[g.pendingNode.r][g.pendingNode.i].type].label;
@@ -2273,6 +2297,7 @@ function bindEach(sel,fn){ document.querySelectorAll(sel).forEach(el=>el.onclick
 function bind(){
   bindEach('[data-inspect]',el=>openInspect(el.dataset.inspect));
   bindEach('[data-inspect-close]',el=>{ ui.inspect=null; render(); });
+  bindEach('[data-hub]',el=>{ const d=el.dataset.hub; if(d==='map'){ ui.screen='map'; } else { ui.screen='camp'; ui.tab=d; } try{window.scrollTo(0,0);}catch(e){} render(); });
   if(ui.screen==='title'){
     const b=$('start'); if(b) b.onclick=()=>{ ui.screen='choose'; render(); };
     const cx=$('codex'); if(cx) cx.onclick=()=>{ ui.screen='codex'; ui.codexTab='chasseurs'; render(); };
