@@ -134,7 +134,7 @@ button.unit:hover:not(:disabled){border-color:var(--line2);}
 .act:disabled{opacity:.34;cursor:not-allowed;}
 .hint{margin-top:9px;font-size:11.5px;color:var(--faint);}
 .clog{margin-top:12px;font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:1.7;min-height:2em;}
-.clog div:first-child{color:var(--dim);}
+.clog .cl-new{color:var(--ink);}
 
 /* ====== RELICS ====== */
 .relics{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px;}
@@ -742,6 +742,22 @@ body{background:
 .tnode.soon{border-left-color:var(--bc);opacity:.7;}
 .tn-on{color:var(--bc);font-family:var(--mono);font-weight:700;}
 .tn-cost{color:var(--bc);}
+/* ===== inspect units + journal ===== */
+.u-info{position:absolute;top:7px;left:7px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-family:var(--mono);font-size:11px;font-style:italic;color:var(--faint);border:1px solid var(--line2);background:var(--bg);cursor:pointer;z-index:3;line-height:1;}
+.u-info:hover{color:var(--ember);border-color:var(--ember);}
+.isp-row{display:flex;gap:12px;align-items:center;margin-bottom:10px;}
+.isp-port{width:64px;height:64px;flex:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5));}
+.isp-row .hc-stats{margin:0;}
+.ish-sub{font-size:12px;color:var(--dim);margin:6px 0 0;line-height:1.5;}
+.ish-sub b{color:var(--ink);}
+.clog{border:1px solid var(--line);border-radius:9px;background:var(--bg2);padding:8px 11px 9px;min-height:2.4em;}
+.clog-h{font-family:var(--sans);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin-bottom:5px;}
+.clog .cl-new{color:var(--ink);}
+.cl-empty{color:var(--faint);font-style:italic;}
+.mini .coin,.eq .coin,.wallet .coin{font-weight:700;}
+.shop-row{align-items:center;}
+.shop-row .mini{white-space:nowrap;}
+.loot-h{color:var(--accent);}
 /* ===== COMBAT UI clarté ===== */
 .unit.mon{padding-top:10px;}
 .intent-banner{margin-top:8px;display:flex;align-items:center;justify-content:center;gap:5px;font-family:var(--mono);font-size:12.5px;font-weight:600;padding:4px 8px;border-radius:7px;border:1px solid var(--line2);background:var(--bg);}
@@ -1770,7 +1786,7 @@ function upgradeGear(id){ const f=findGear(id); if(!f) return; const it=f.it;
   toast(`${gearName(it)} renforcé !`); render(); }
 function forgeRows(list){ return list.map(o=>{ const it=o.it; const max=(it.plus||0)>=MAX_PLUS; const cost=upgradeCost(it);
   const prev=max?'':`<div class="fg-prev">→ ${upgradePreview(it)}</div>`;
-  const btn=max?`<span class="maxplus">+${MAX_PLUS} max</span>`:`<button class="mini" data-upg="${it.id}" ${(g.inv.gold||0)>=cost?'':'disabled'}>Renforcer · ${cost} ⊙</button>`;
+  const btn=max?`<span class="maxplus">+${MAX_PLUS} max</span>`:`<button class="mini" data-upg="${it.id}" ${(g.inv.gold||0)>=cost?'':'disabled'}>Renforcer · ${cost} <span class="coin">⊙</span></button>`;
   return `<div class="forge-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
     <div class="rc-med">${gearMedallion(it)}</div>
     <div class="fg-main"><div class="fg-name" style="color:${RAR_COLOR[it.rarity]}">${gearName(it)} <span class="fg-where">· ${o.where}</span></div>
@@ -1778,6 +1794,15 @@ function forgeRows(list){ return list.map(o=>{ const it=o.it; const max=(it.plus
     ${btn}</div>`; }).join(''); }
 function allGearList(){ const list=[]; g.team.forEach((h,i)=>['arme','armure','talisman'].forEach(sl=>{ if(h.gear[sl]) list.push({it:h.gear[sl],where:h.nom}); })); g.inv.gear.forEach(it=>list.push({it,where:'Sac'})); return list; }
 function shortName(n){ return n.slice(0,3); }
+function intentText(m){ const k=(m.intent||{}).kind||'attack';
+  if(k==='heal') return 'soigne un allié blessé';
+  if(k==='buff'||k==='rally') return 'enrage un de ses alliés';
+  if(k==='aoe') return 'attaque toute l’escouade (~'+previewHeroDmg(m,true)+' chacun)';
+  if(k==='venin') return 'inocule un venin (poison sur 3 tours)';
+  if(k==='wail') return 'pousse un cri — rend un chasseur vulnérable';
+  if(k==='summon') return 'relève un servant';
+  return 'attaque '+(m.intent&&m.intent.big?'lourdement ':'')+'(~'+previewHeroDmg(m,false)+')';
+}
 function intentLabel(m){
   const k=(m.intent||{}).kind||'attack';
   if(k==='heal') return '✚ soin';
@@ -1973,6 +1998,7 @@ function viewCombat(){
     const kind=(m.intent||{}).kind||'attack';
     const stat=`${m.dot?`<span class="st st-dot" title="Poison/Brûlure · ${m.dot.dmg}/tour">🔥${m.dot.stacks>1?'×'+m.dot.stacks:''}</span>`:''}${m.vuln>0?'<span class="st st-vuln" title="Vulnérable · +30% de dégâts subis">⤓</span>':''}`;
     return `<button class="unit mon ${dead?'dead':''} ${tgt?'tgt':''} ${m.boss?'boss':''} ${m.elite?'elite':''} ${m.enraged?'enraged':''}" id="mon-${i}" data-mon="${i}" ${dead?'disabled':''}>
+      ${dead?'':`<span class="u-info" data-inspect="mon:${i}" title="Inspecter">i</span>`}
       <div class="portrait mon-portrait">${monGlyph(m)}</div>
       <div class="u-name">${m.nom}${m.boss?'<span class="boss-tag">BOSS</span>':''}${m.elite?`<span class="elite-tag">${m.eliteNom}</span>`:''}</div>
       <div class="u-bar mon"><i style="width:${pct}%"></i></div>
@@ -1986,6 +2012,7 @@ function viewCombat(){
     const st=heroStats(h); const pct=Math.max(0,Math.round(h.pv/st.pvMax*100)); const down=h.pv<=0; const active=(i===hi&&!down);
     const stat=`${(!down&&h.poison)?'<span class="st st-psn" title="Empoisonné">☠</span>':''}${(!down&&h.shield>0)?`<span class="st st-shield" title="Bouclier">⛉${h.shield}</span>`:''}${(!down&&h.guard>0)?'<span class="st st-guard" title="En garde · dégâts réduits">⛊</span>':''}${(!down&&h.vuln>0)?'<span class="st st-vuln" title="Vulnérable">⤓</span>':''}`;
     return `<div class="unit hero ${down?'down':''} ${active?'active':''} ${(pct<25&&!down)?'low':''} cls-${h.cls}" id="hero-${i}">
+      <span class="u-info" data-inspect="hero:${i}" title="Inspecter">i</span>
       <div class="portrait hero-portrait">${heroGlyph(h.cls)}</div>
       <div class="u-name">${h.nom}${down?'<span class="downtag">à terre</span>':''}</div>
       <div class="u-bar hero"><i style="width:${pct}%"></i></div>
@@ -2018,7 +2045,7 @@ function viewCombat(){
     <div class="row mons">${monRow}</div>
     <div class="sect-label">Escouade</div>
     <div class="row heroes">${heroRow}</div>
-    <div class="clog">${g.log.slice(0,3).map(l=>`<div>${l}</div>`).join('')}</div>
+    <div class="clog"><div class="clog-h">Journal</div>${g.log.length?g.log.slice(0,4).map((l,k)=>`<div class="${k===0?'cl-new':''}">${l}</div>`).join(''):'<div class="cl-empty">Le combat s’engage…</div>'}</div>
     ${actions}`;
 }
 function resourceStrip(){
@@ -2177,7 +2204,7 @@ function campAtelier(){
 function campForge(){
   const list=allGearList();
   const upg=list.length?forgeRows(list):`<div class="empty-box">Aucun équipement à renforcer pour l’instant.</div>`;
-  return `<div class="wallet">Bourse : <b>${g.inv.gold||0} ⊙</b></div>
+  return `<div class="wallet">Bourse : <b>${g.inv.gold||0} <span class="coin">⊙</span></b></div>
     <div class="rb-h">Fabrication — matériaux</div>
     ${campAtelier()}
     <div class="rb-h shop-sell-h">Renforcement — Or ⊙</div>
@@ -2185,12 +2212,12 @@ function campForge(){
     ${upg}`;
 }
 function viewLoot(){
-  const banner=g.lastLoot?`<div class="loot"><div class="loot-h">Butin de la bataille</div>${g.lastLoot}</div>`:`<div class="loot"><div class="loot-h">Butin de la bataille</div><div class="dim">Rien cette fois.</div></div>`;
+  const banner=g.lastLoot?`<div class="loot"><div class="loot-h">◆ Butin de la bataille</div>${g.lastLoot}</div>`:`<div class="loot"><div class="loot-h">◆ Butin de la bataille</div><div class="dim">Rien cette fois.</div></div>`;
   const gear = !g.inv.gear.length?`<div class="empty-box">Aucun équipement en réserve.</div>`
     : g.inv.gear.map(it=>`<div class="gear-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
       <button class="gr-main gr-click" data-equipbest="${it.id}" title="Équiper automatiquement sur ${optimName(it)}"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${slotIcon(it.slot)} ${gearName(it)} <span class="gr-go">▸ équiper</span></div>
         <div class="gr-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div><div class="gr-delta">${deltaVerdict(it)}</div></button>
-      <div class="gr-equip">${g.team.map((h,i)=>`<button class="eq" data-equip="${it.id}:${i}" title="Équiper sur ${h.nom} · ${slotDelta(it,h).arrow}">${shortName(h.nom)}</button>`).join('')}<button class="eq danger" data-sell="${it.id}" title="Vendre contre de l’Or">Vendre +${sellValue(it)} ⊙</button></div>
+      <div class="gr-equip">${g.team.map((h,i)=>`<button class="eq" data-equip="${it.id}:${i}" title="Équiper sur ${h.nom} · ${slotDelta(it,h).arrow}">${shortName(h.nom)}</button>`).join('')}<button class="eq danger" data-sell="${it.id}" title="Vendre contre de l’Or">Vendre +${sellValue(it)} <span class="coin">⊙</span></button></div>
     </div>`).join('');
   const list=allGearList();
   const upg=list.length?forgeRows(list):'';
@@ -2261,28 +2288,28 @@ function viewShop(){
       <div class="gr-med">${gearMedallion(s.it)}</div>
       <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[s.it.rarity]}">${gearName(s.it)}</div>
         <div class="gr-meta">${s.it.slot} · ${s.it.rarity} · ${gearStatsShort(s.it)} ${gearPropTag(s.it)}</div><div class="gr-delta">${deltaVerdict(s.it)}</div></div>
-      ${s.sold?`<span class="maxed">vendu</span>`:`<button class="mini" data-buy="${k}" ${(g.inv.gold||0)>=s.cost?'':'disabled'}>${s.cost} ⊙</button>`}
+      ${s.sold?`<span class="maxed">vendu</span>`:`<button class="mini" data-buy="${k}" ${(g.inv.gold||0)>=s.cost?'':'disabled'}>${s.cost} <span class="coin">⊙</span></button>`}
     </div>`).join('');
   const sell = !g.inv.gear.length?`<div class="empty-box">Rien à revendre.</div>`
     : g.inv.gear.map(it=>`<div class="shop-row" style="--rc:${RAR_COLOR[it.rarity]};border-left-color:${RAR_COLOR[it.rarity]}">
       <div class="gr-med">${gearMedallion(it)}</div>
       <div class="gr-main"><div class="gr-name" style="color:${RAR_COLOR[it.rarity]}">${gearName(it)}</div>
         <div class="gr-meta">${it.slot} · ${it.rarity} · ${gearStatsShort(it)} ${gearPropTag(it)}</div><div class="gr-opt">${optimTag(it)}</div></div>
-      <button class="mini danger" data-sell="${it.id}">Vendre · +${sellValue(it)} ⊙</button>
+      <button class="mini danger" data-sell="${it.id}">Vendre · +${sellValue(it)} <span class="coin">⊙</span></button>
     </div>`).join('');
   const list=allGearList();
   const forge=list.length?forgeRows(list):`<div class="empty-box">Aucun équipement à renforcer.</div>`;
   return `${topBar('Marché')}
     <div class="enc-ic">⬡</div><h2 class="ctr">Marchand des cendres</h2>
     <p class="enc-text ctr">Un colporteur masqué étale sa camelote sur une peau tannée. Ici tout se paie en <span class="coin">Or ⊙</span>.</p>
-    <div class="ctr"><span class="wallet">Bourse : <b>${g.inv.gold||0} ⊙</b></span></div>
+    <div class="ctr"><span class="wallet">Bourse : <b>${g.inv.gold||0} <span class="coin">⊙</span></b></span></div>
     ${resourceStrip()}
     <div class="rb-h">Acheter</div>${buy}
-    <div class="shop-row"><div class="gr-med">${iconMedallion('<path d=\"M10 3 H14\"/><path d=\"M11 3 V6 L8 11 V18 Q8 20 10 20 H14 Q16 20 16 18 V11 L13 6 V3\"/><path d=\"M8.4 13 H15.6\"/>','#74ad6f')}</div><div class="gr-main"><div class="gr-name">Potion de soin</div><div class="gr-meta">restaure 50% des PV en combat</div></div><button class="mini" id="buy-potion" ${(g.inv.gold||0)>=g.shop.potionCost?'':'disabled'}>${g.shop.potionCost} ⊙</button></div>
+    <div class="shop-row"><div class="gr-med">${iconMedallion('<path d=\"M10 3 H14\"/><path d=\"M11 3 V6 L8 11 V18 Q8 20 10 20 H14 Q16 20 16 18 V11 L13 6 V3\"/><path d=\"M8.4 13 H15.6\"/>','#74ad6f')}</div><div class="gr-main"><div class="gr-name">Potion de soin</div><div class="gr-meta">restaure 50% des PV en combat</div></div><button class="mini" id="buy-potion" ${(g.inv.gold||0)>=g.shop.potionCost?'':'disabled'}>${g.shop.potionCost} <span class="coin">⊙</span></button></div>
     <div class="rb-h shop-sell-h">Revendre ton équipement</div>${sell}
     <div class="rb-h shop-sell-h">Forge — renforcer un équipement</div>${forge}
     ${relicsLeft()?`<div class="rb-h shop-sell-h">Artefact du colporteur</div>
-    <div class="shop-row" style="border-left-color:var(--gold)"><div class="gr-med relic-med">✦</div><div class="gr-main"><div class="gr-name" style="color:var(--gold)">Relique scellée</div><div class="gr-meta">artefact permanent aléatoire — un atout majeur</div></div><button class="mini" id="buy-relic" ${(g.inv.gold||0)>=g.shop.relicCost?'':'disabled'}>${g.shop.relicCost} ⊙</button></div>`:''}
+    <div class="shop-row" style="border-left-color:var(--gold)"><div class="gr-med relic-med">✦</div><div class="gr-main"><div class="gr-name" style="color:var(--gold)">Relique scellée</div><div class="gr-meta">artefact permanent aléatoire — un atout majeur</div></div><button class="mini" id="buy-relic" ${(g.inv.gold||0)>=g.shop.relicCost?'':'disabled'}>${g.shop.relicCost} <span class="coin">⊙</span></button></div>`:''}
     <button class="cta sticky-cta" id="shop-leave">Quitter le marché ▸</button>`;
 }
 function buyRelicShop(){ if(!relicsLeft()||(g.inv.gold||0)<g.shop.relicCost) return; g.inv.gold-=g.shop.relicCost; const r=eGiveRelic(); toast('Relique acquise : '+r); render(); }
@@ -2397,7 +2424,7 @@ function render(){
 }
 function bindEach(sel,fn){ document.querySelectorAll(sel).forEach(el=>el.onclick=()=>fn(el)); }
 function bind(){
-  bindEach('[data-inspect]',el=>openInspect(el.dataset.inspect));
+  document.querySelectorAll('[data-inspect]').forEach(el=>{ el.onclick=(e)=>{ if(e&&e.stopPropagation) e.stopPropagation(); openInspect(el.dataset.inspect); }; });
   bindEach('[data-inspect-close]',el=>{ ui.inspect=null; render(); });
   bindEach('[data-hub]',el=>{ const d=el.dataset.hub; if(d==='map'){ ui.screen='map'; } else { ui.screen='camp'; ui.tab=d; } try{window.scrollTo(0,0);}catch(e){} render(); });
   if(ui.screen==='title'){
@@ -2516,6 +2543,21 @@ function inspectSheet(){ if(!ui.inspect) return ''; const o=ui.inspect; return `
 function openInspect(key){ const parts=String(key).split(':'); const kind=parts[0];
   if(kind==='relic'){ const r=relicById(parts[1]); if(r) ui.inspect={icon:`<span class="coin">${r.ic}</span>`,title:r.nom,html:`<p>${r.desc}</p>`}; }
   else if(kind==='perk'){ const p=(PERKS[parts[1]]||[]).find(x=>x.id===parts[2]); if(p) ui.inspect={icon:'★',title:p.nom,html:`<p>${p.desc}</p><p class="ish-cost">Coût : ${costStr(p.cost)}</p>`}; }
+  else if(kind==='mon'){ const m=g&&g.mons&&g.mons[+parts[1]]; if(m){ const t=MONSTERS[m.tmpl]||{};
+    ui.inspect={icon:`<span style="color:var(--blood)">⚔</span>`,title:m.nom,html:
+      `<div class="isp-row"><div class="isp-port">${bigPortrait('mon',m.tmpl,m.boss)}</div><div><div class="hc-stats"><span>♥ ${Math.max(0,m.pv)}/${m.pvMax}</span><span>⚔ ${m.atk}</span><span>⛨ ${m.def}</span><span>⚡ ${m.vit}</span></div><p class="ish-sub">${m.magic?'Frappe magique · ':''}${m.eliteNom?m.eliteNom+' · ':''}${t.trait||''}</p></div></div>`+
+      `<p>${t.desc||''}</p>`+
+      `<p class="ish-sub">Intention : <b>${intentText(m)}</b></p>`+
+      (m.dot?`<p class="ish-sub">🔥 Poison/brûlure : ${m.dot.dmg}/tour (${m.dot.turns} tours)</p>`:'')+
+      (m.vuln>0?`<p class="ish-sub">⤓ Vulnérable — +30% de dégâts subis</p>`:'')+
+      (t.loot?`<p class="ish-cost">Butin : ${t.loot.map(x=>MAT_LABEL[x]).join(', ')}</p>`:'') }; } }
+  else if(kind==='hero'){ const h=g&&g.team&&g.team[+parts[1]]; if(h){ const c=CLASSES[h.cls]; const st=heroStats(h); const arr=PERKS[h.cls]||[]; const owned=(h.perks||[]).map(id=>{const p=arr.find(x=>x.id===id);return p?p.nom:null;}).filter(Boolean);
+    ui.inspect={icon:'★',title:h.nom,html:
+      `<div class="isp-row"><div class="isp-port">${bigPortrait('hero',h.cls)}</div><div><p class="ish-sub">${c.role} · niv.${h.lvl}${h.pv<=0?' · à terre':''}</p><div class="hc-stats"><span>♥ ${Math.max(0,h.pv)}/${st.pvMax}</span><span>⚔ ${st.atk}</span><span>⛨ ${st.def}</span><span>⚡ ${st.vit}</span></div></div></div>`+
+      `<p><b>${c.passive.nom}</b> — ${c.passive.desc}</p>`+
+      `<p class="ish-sub">Équipement : ${['arme','armure','talisman'].map(sl=>h.gear[sl]?gearName(h.gear[sl]):'—').join(' · ')}</p>`+
+      ((h.shield>0||h.guard>0||h.poison)?`<p class="ish-sub">${h.shield>0?'⛉ '+h.shield+' bouclier  ':''}${h.guard>0?'⛊ en garde  ':''}${h.poison?'☠ empoisonné':''}</p>`:'')+
+      (owned.length?`<p class="ish-sub">Spécialisations : ${owned.join(', ')}</p>`:'') }; } }
   render(); }
 let _toastT;
 function toast(msg){ const t=$('toast'); if(!t) return; t.textContent=msg; t.classList.add('show'); clearTimeout(_toastT); _toastT=setTimeout(()=>t.classList.remove('show'),2000); }
