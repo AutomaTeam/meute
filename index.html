@@ -109,8 +109,18 @@ button.unit{cursor:pointer;}
 button.unit:hover:not(:disabled){border-color:var(--line2);}
 .unit .u-name{font-size:13.5px;font-weight:600;line-height:1.2;min-height:2.4em;display:flex;align-items:flex-start;}
 .unit .u-bar{height:6px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;margin:7px 0 5px;}
-.unit .u-bar i{display:block;height:100%;border-radius:4px;transition:width .35s ease;}
+.unit .u-bar i{display:block;height:100%;border-radius:4px;transition:width .45s cubic-bezier(.22,.7,.25,1);}
 .unit.mon .u-bar i{background:linear-gradient(90deg,#b8463b,var(--blood));}
+/* --- fluidity polish (patch38) --- */
+.act:active:not(:disabled),.mini:active:not(:disabled),.cta:active,.btn2:active,.eq:active:not(:disabled),.tab:active,.hb:active,.enc-opt:active:not(:disabled),.pick:active,.pchip:active,[data-legend]:active,[data-act]:active:not(:disabled),[data-buy]:active,[data-node]:active{transform:scale(.955);transition:transform .07s ease;}
+.mnode.reach:active,.tnode.avail:active{transform:scale(.95);}
+.intent-banner.i-aoe{animation:aoepulse 1.5s ease-in-out infinite;}
+@keyframes aoepulse{0%,100%{box-shadow:0 0 0 0 rgba(208,89,77,0);}50%{box-shadow:0 0 13px 0 rgba(208,89,77,.45);}}
+.unit.mon.tgt{animation:tgtbreathe 2s ease-in-out infinite;}
+@keyframes tgtbreathe{0%,100%{box-shadow:0 0 0 1px var(--ember-soft);}50%{box-shadow:0 0 10px 1px var(--ember-soft);}}
+.unit .u-bar i{will-change:width;}
+@media (prefers-reduced-motion:reduce){.unit.mon.tgt,.intent-banner.i-aoe{animation:none;}.unit .u-bar i{transition:none;}}
+
 .unit.hero .u-bar i{background:linear-gradient(90deg,#5f9a5a,var(--heal));}
 .unit .u-foot{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--dim);}
 .unit .u-int{color:var(--blood);}
@@ -1362,7 +1372,7 @@ function startCombat(depth, kind){
   { const sa=g.team.reduce((m,h)=>Math.max(m,(h.pv>0?perkSum(h,'shieldAll'):0)),0); if(sa) g.team.forEach(h=>{ if(h.pv>0) h.shield=(h.shield||0)+sa; }); }
   if(hasRelic('serment_de_cendre')) g.team.forEach(h=>{ if(h.pv>0) h.shield=(h.shield||0)+16; });
   g.buffAtk=null; g.secondWind=false; g.elan=(hasRelic('coeur_ardent')?2:0)+(hasLegend('elan_inne')?2:0);
-  ui.screen='combat'; ui.target=firstLivingMon(); ui._fx=[];
+  ui.screen='combat'; ui.target=firstLivingMon(); ui._fx=[]; ui._barw={};
   beginRound();
   if(kind==='boss'){ try{ flashScreen('rgba(208,89,77,.32)'); shake(); sfx('lose'); }catch(e){} }
 }
@@ -2056,14 +2066,14 @@ function viewChoose(){
 }
 function viewCombat(){
   const monRow=g.mons.map((m,i)=>{
-    const pct=Math.max(0,Math.round(m.pv/m.pvMax*100)); const dead=m.pv<=0; const tgt=(i===ui.target&&!dead);
+    const pct=Math.max(0,Math.round(m.pv/m.pvMax*100)); const dead=m.pv<=0; const tgt=(i===ui.target&&!dead); ui._barw=ui._barw||{}; const _sp=(ui._barw['m'+i]==null?pct:ui._barw['m'+i]); ui._barw['m'+i]=pct;
     const kind=(m.intent||{}).kind||'attack';
     const stat=`${m.dot?`<span class="st st-dot" title="Poison/Brûlure · ${m.dot.dmg}/tour">🔥${m.dot.stacks>1?'×'+m.dot.stacks:''}</span>`:''}${m.vuln>0?'<span class="st st-vuln" title="Vulnérable · +30% de dégâts subis">⤓</span>':''}`;
     return `<button class="unit mon ${dead?'dead':''} ${tgt?'tgt':''} ${m.boss?'boss':''} ${m.elite?'elite':''} ${m.enraged?'enraged':''}" id="mon-${i}" data-mon="${i}" ${dead?'disabled':''}>
       ${dead?'':`<span class="u-info" data-inspect="mon:${i}" title="Inspecter">i</span>`}
       <div class="portrait mon-portrait">${monGlyph(m)}</div>
       <div class="u-name">${m.nom}${m.boss?'<span class="boss-tag">BOSS</span>':''}${m.elite?`<span class="elite-tag">${m.eliteNom}</span>`:''}</div>
-      <div class="u-bar mon"><i style="width:${pct}%"></i></div>
+      <div class="u-bar mon"><i style="width:${_sp}%" data-w="${pct}"></i></div>
       <div class="u-foot"><span class="num">${Math.max(0,m.pv)}/${m.pvMax}</span><span class="mstats">⚔${m.atk} ⛨${m.def}</span></div>
       ${stat?`<div class="statline mon-status">${stat}</div>`:''}
       ${dead?'':`<div class="intent-banner i-${kind}" title="Prochain coup de l’ennemi">${intentLabel(m)}</div>`}
@@ -2071,13 +2081,13 @@ function viewCombat(){
   }).join('');
   const hi=curHeroIdx();
   const heroRow=g.team.map((h,i)=>{
-    const st=heroStats(h); const pct=Math.max(0,Math.round(h.pv/st.pvMax*100)); const down=h.pv<=0; const active=(i===hi&&!down);
+    const st=heroStats(h); const pct=Math.max(0,Math.round(h.pv/st.pvMax*100)); const down=h.pv<=0; const active=(i===hi&&!down); ui._barw=ui._barw||{}; const _sp=(ui._barw['h'+i]==null?pct:ui._barw['h'+i]); ui._barw['h'+i]=pct;
     const stat=`${(!down&&h.poison)?'<span class="st st-psn" title="Empoisonné">☠</span>':''}${(!down&&h.shield>0)?`<span class="st st-shield" title="Bouclier">⛉${h.shield}</span>`:''}${(!down&&h.guard>0)?'<span class="st st-guard" title="En garde · dégâts réduits">⛊</span>':''}${(!down&&h.vuln>0)?'<span class="st st-vuln" title="Vulnérable">⤓</span>':''}`;
     return `<div class="unit hero ${down?'down':''} ${active?'active':''} ${(pct<25&&!down)?'low':''} cls-${h.cls}" id="hero-${i}">
       <span class="u-info" data-inspect="hero:${i}" title="Inspecter">i</span>
       <div class="portrait hero-portrait">${heroGlyph(h.cls)}</div>
       <div class="u-name">${h.nom}${down?'<span class="downtag">à terre</span>':''}</div>
-      <div class="u-bar hero"><i style="width:${pct}%"></i></div>
+      <div class="u-bar hero"><i style="width:${_sp}%" data-w="${pct}"></i></div>
       <div class="u-foot"><span class="num">${Math.max(0,h.pv)}/${st.pvMax}</span><span class="statline">${stat}${h.cdA>0?`<span class="u-cd">⟳${h.cdA}</span>`:''}</span></div>
     </div>`;
   }).join('');
@@ -2489,6 +2499,7 @@ function render(){
   { const a=screenAccent(); try{ const r=document.documentElement.style; r.setProperty('--accent', a.c); r.setProperty('--accent-soft', a.s); }catch(e){} }
   app.innerHTML=html + inspectSheet();
   { const key=ui.screen+'|'+(ui.tab||''); if(ui._lastKey!==key){ ui._lastKey=key; try{ app.classList.remove('fadein'); void app.offsetWidth; app.classList.add('fadein'); }catch(e){} } }
+  try{ _raf(()=>{ document.querySelectorAll('.u-bar i[data-w]').forEach(el=>{ el.style.width=el.dataset.w+'%'; }); }); }catch(e){}
   bind();
   flushFx();
 }
@@ -2577,7 +2588,7 @@ function flushFx(){
     if(f.cls==='death') burstAt(el,'var(--blood)',16);
     else if(f.cls==='crit'){ burstAt(el,'var(--gold)',14); ringAt(el,'rgba(217,178,91,.9)'); flashScreen('rgba(224,145,63,.18)'); }
     else if(f.cls==='dmg') ringAt(el,'rgba(208,89,77,.75)');
-    else if(f.cls==='heal') ringAt(el,'rgba(116,173,111,.75)');
+    else if(f.cls==='heal'){ ringAt(el,'rgba(116,173,111,.75)'); burstAt(el,'rgba(134,196,129,.92)',7); }
     else if(f.cls==='shield') ringAt(el,'rgba(111,155,196,.8)');
     if(f.txt){ const r=el.getBoundingClientRect(); const s=document.createElement('span'); s.className='float '+(f.cls||''); s.textContent=f.txt; s.style.left=(r.left+r.width/2)+'px'; s.style.top=(r.top+6)+'px'; layer.appendChild(s); setTimeout(()=>{ if(s.remove) s.remove(); },1000); }
   });
