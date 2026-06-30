@@ -742,6 +742,25 @@ body{background:
 .tnode.soon{border-left-color:var(--bc);opacity:.7;}
 .tn-on{color:var(--bc);font-family:var(--mono);font-weight:700;}
 .tn-cost{color:var(--bc);}
+/* ===== LÉGENDES (méta permanente coûteuse) ===== */
+.legends{max-width:820px;margin:18px auto 0;border:1px solid rgba(217,178,91,.3);border-radius:14px;padding:14px 16px;background:radial-gradient(120% 80% at 50% 0,rgba(217,178,91,.07),transparent 60%),var(--bg2);}
+.leg-h{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);text-align:center;margin-bottom:6px;}
+.leg-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+@media (max-width:560px){ .leg-grid{grid-template-columns:1fr;} }
+.legcard{border:1px solid var(--line2);border-left:3px solid var(--gold);border-radius:10px;padding:11px 13px;background:linear-gradient(180deg,rgba(217,178,91,.05),var(--bg2));display:flex;flex-direction:column;gap:6px;}
+.legcard.soon{opacity:.55;}
+.legcard.avail{box-shadow:0 0 0 1px rgba(217,178,91,.35) inset;}
+.legcard.owned{border-left-color:var(--heal);background:linear-gradient(180deg,rgba(116,173,111,.06),var(--bg2));}
+.leg-top{display:flex;align-items:center;gap:8px;}
+.leg-ic{width:26px;height:26px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:7px;color:var(--gold);border:1px solid rgba(217,178,91,.4);font-size:14px;}
+.legcard.owned .leg-ic{color:var(--heal);border-color:rgba(116,173,111,.4);}
+.leg-nom{font-weight:600;font-size:14px;color:var(--gold);flex:1;}
+.legcard.owned .leg-nom{color:var(--heal);}
+.leg-on{color:var(--heal);font-family:var(--mono);font-weight:700;}
+.leg-desc{font-size:12px;color:var(--dim);line-height:1.45;}
+.leg-btn{align-self:flex-start;color:var(--gold);border-color:rgba(217,178,91,.4);}
+.leg-btn:hover:not(:disabled){border-color:var(--gold);}
+.leg-acq{align-self:flex-start;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--heal);}
 /* ===== inspect units + journal ===== */
 .u-info{position:absolute;top:7px;left:7px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-family:var(--mono);font-size:11px;font-style:italic;color:var(--faint);border:1px solid var(--line2);background:var(--bg);cursor:pointer;z-index:3;line-height:1;}
 .u-info:hover{color:var(--ember);border-color:var(--ember);}
@@ -1001,9 +1020,20 @@ let meta=Store.get('meute_meta')||{};
 meta.best=meta.best||0; meta.runs=meta.runs||0; meta.wins=meta.wins||0;
 meta.trophies=meta.trophies||0;
 meta.perilMax=meta.perilMax||0; meta.peril=Math.min(meta.peril||0, meta.perilMax); if(meta.sfx===undefined) meta.sfx=true;
-meta.unlocked=meta.unlocked||{}; meta.unlocked.classes=meta.unlocked.classes||[]; meta.unlocked.relics=meta.unlocked.relics||[]; meta.kills=meta.kills||0;
+meta.unlocked=meta.unlocked||{}; meta.unlocked.classes=meta.unlocked.classes||[]; meta.unlocked.relics=meta.unlocked.relics||[]; meta.kills=meta.kills||0; meta.legends=meta.legends||[];
 meta.upgrades=Object.assign({vigueur:0,crocs:0,butin:0,instinct:0}, meta.upgrades||{});
 function save(){ Store.set('meute_meta',meta); }
+const LEGENDS=[
+  {id:'bourse', ic:'◈', nom:'Bourse légendaire', desc:'Commence chaque battue avec 100 Or.', cost:25},
+  {id:'elan_inne', ic:'❂', nom:'Élan inné', desc:'Commence chaque combat avec +2 points d’Élan.', cost:30},
+  {id:'fortune', ic:'⊛', nom:'Fortune légendaire', desc:'Double l’Or gagné en combat.', cost:40},
+  {id:'arsenal', ic:'⚔', nom:'Arsenal ancestral', desc:'Chaque chasseur démarre la battue avec un équipement épique.', cost:45},
+  {id:'titan_pv', ic:'♥', nom:'Cœur de titan', desc:'+25% de PV maximum pour toute l’escouade, en permanence.', cost:55},
+  {id:'reincarnation', ic:'✦', nom:'Réincarnation', desc:'Une fois par battue, le premier chasseur qui tomberait est ranimé à 50% PV.', cost:60},
+  {id:'maitre_armes', ic:'⟐', nom:'Maître d’armes', desc:'Toutes les compétences commencent au niveau 2.', cost:75},
+];
+function hasLegend(id){ return (meta.legends||[]).includes(id); }
+function buyLegend(id){ const L=LEGENDS.find(x=>x.id===id); if(!L||hasLegend(id)) return; if((meta.trophies||0)<L.cost){ toast('Pas assez de Trophées.'); return; } meta.trophies-=L.cost; if(!meta.legends) meta.legends=[]; meta.legends.push(id); toast('Légende scellée : '+L.nom); save(); render(); }
 const UNLOCKS=[
   {id:'ecorcheur', type:'class', nom:'Écorcheur (classe)', cond:m=>(m.best||0)>=20, how:'Atteins la vague 20'},
   {id:'oeil_du_titan', type:'relic', nom:'Œil du titan (relique)', cond:m=>(m.wins||0)>=1, how:'Remporte une battue'},
@@ -1021,7 +1051,7 @@ function importSave(code){ try{ const o=JSON.parse(decodeURIComponent(escape(ato
   meta.best=meta.best||0; meta.runs=meta.runs||0; meta.wins=meta.wins||0; meta.trophies=meta.trophies||0;
   meta.upgrades=Object.assign({vigueur:0,crocs:0,butin:0,instinct:0}, meta.upgrades||{});
   meta.perilMax=meta.perilMax||0; meta.peril=Math.min(meta.peril||0,meta.perilMax); if(meta.sfx===undefined) meta.sfx=true;
-  meta.unlocked=meta.unlocked||{}; meta.unlocked.classes=meta.unlocked.classes||[]; meta.unlocked.relics=meta.unlocked.relics||[]; meta.kills=meta.kills||0;
+  meta.unlocked=meta.unlocked||{}; meta.unlocked.classes=meta.unlocked.classes||[]; meta.unlocked.relics=meta.unlocked.relics||[]; meta.kills=meta.kills||0; meta.legends=meta.legends||[];
   save(); return true; }catch(e){ return false; } }
 const META_TREE=[
   {id:'vigueur', nom:'Vigueur', ic:'⛨', nodes:[
@@ -1061,7 +1091,7 @@ function metaLvl(id){ return (meta.upgrades&&meta.upgrades[id])||0; }
 function metaMods(){
   const v=metaLvl('vigueur'), c=metaLvl('crocs'), b=metaLvl('butin'), i=metaLvl('instinct');
   return {
-    hpPct:(v>=1?8:0)+(v>=2?8:0)+(v>=4?12:0)+(v>=5?15:0),
+    hpPct:(v>=1?8:0)+(v>=2?8:0)+(v>=4?12:0)+(v>=5?15:0)+(hasLegend('titan_pv')?25:0),
     dmgTaken:(v>=3?0.10:0)+(v>=6?0.08:0),
     dmgPct:(c>=1?7:0)+(c>=3?8:0)+(c>=4?10:0)+(c>=5?12:0),
     crit:(c>=2?0.06:0)+(c>=6?0.08:0),
@@ -1196,6 +1226,10 @@ function newRun(thirdClass, seed){
   if(M.mats){ ['cuir','croc','fer'].forEach(k=>g.inv.mats[k]+=M.mats); }
   if(M.skillB){ g.team.forEach(h=>{ h.skillBunlocked=true; }); }
   { let nRel=(M.startRelic?1:0); if(M.startRelic2) nRel=2; for(let z=0;z<nRel;z++){ if(relicsLeft()) addRelic(pick(availRelics()).id); } }
+  if(hasLegend('bourse')) g.inv.gold+=100;
+  if(hasLegend('arsenal')) g.team.forEach(h=>{ const it=genGear('épique',5); h.gear[it.slot]=it; });
+  if(hasLegend('maitre_armes')) g.team.forEach(h=>{ h.skillLvl=Math.max(h.skillLvl,2); if(h.skillBunlocked) h.skillBLvl=Math.max(h.skillBLvl,2); });
+  g.legendRevived=false;
   genMap();
   g.secondWind=false; clearRun(); saveRun();
   meta.runs=(meta.runs||0)+1; save();
@@ -1327,7 +1361,7 @@ function startCombat(depth, kind){
   g.team.forEach(h=>{ if(h.pv>0){ const ps=perkSum(h,'shield'); if(ps) h.shield=(h.shield||0)+ps; } });
   { const sa=g.team.reduce((m,h)=>Math.max(m,(h.pv>0?perkSum(h,'shieldAll'):0)),0); if(sa) g.team.forEach(h=>{ if(h.pv>0) h.shield=(h.shield||0)+sa; }); }
   if(hasRelic('serment_de_cendre')) g.team.forEach(h=>{ if(h.pv>0) h.shield=(h.shield||0)+16; });
-  g.buffAtk=null; g.secondWind=false; g.elan=hasRelic('coeur_ardent')?2:0;
+  g.buffAtk=null; g.secondWind=false; g.elan=(hasRelic('coeur_ardent')?2:0)+(hasLegend('elan_inne')?2:0);
   ui.screen='combat'; ui.target=firstLivingMon(); ui._fx=[];
   beginRound();
   if(kind==='boss'){ try{ flashScreen('rgba(208,89,77,.32)'); shake(); sfx('lose'); }catch(e){} }
@@ -1369,6 +1403,7 @@ function applyHeroDamage(h,hi,raw){
   if(d>0){ h.pv=Math.max(0,h.pv-d); fx('hero-'+hi,'-'+d,'dmg'); }
   else fx('hero-'+hi,'⛉','shield');
   if(h.pv<=0 && hasRelic('second_souffle') && !g.secondWind){ h.pv=1; g.secondWind=true; fx('hero-'+hi,'✦ survie','heal'); }
+  if(h.pv<=0 && hasLegend('reincarnation') && !g.legendRevived){ h.pv=Math.round(heroStats(h).pvMax*0.5); g.legendRevived=true; fx('hero-'+hi,'✦ renaissance','heal'); }
   return d; }
 function lowestAlly(){ const liv=g.team.map((x,i)=>({x,i})).filter(o=>o.x.pv>0); if(!liv.length) return null;
   liv.sort((a,b)=>(a.x.pv/heroStats(a.x).pvMax)-(b.x.pv/heroStats(b.x).pvMax)); return liv[0]; }
@@ -1561,6 +1596,7 @@ function endCombat(){
   if(g.combatKind==='boss') gold+=(depth>=WAVES?90:35+depth);
   gold=Math.round(gold*(1+(metaMods().goldPct||0)/100));
   if(hasRelic('collecteur')) gold=Math.round(gold*1.25);
+  if(hasLegend('fortune')) gold=gold*2;
   if(g.stats) g.stats.gold+=gold;
   loot.gold=gold;
   applyLoot(loot); g.lastLoot=lootSummary(loot);
@@ -2377,6 +2413,12 @@ function viewLair(){
     </div>
     ${bonHtml}
     <div class="tree">${branches}</div>
+    <div class="legends">
+      <div class="leg-h">⭐ Légendes de la meute</div>
+      <p class="lair-sub" style="margin:0 auto 12px">Améliorations <b>permanentes</b> et puissantes, mais <b>très coûteuses</b> en Trophées. Elles changent la façon dont tu démarres chaque battue.</p>
+      <div class="leg-grid">${LEGENDS.map(L=>{ const owned=hasLegend(L.id); const afford=!owned&&(meta.trophies||0)>=L.cost;
+        return `<div class="legcard ${owned?'owned':afford?'avail':'soon'}"><div class="leg-top"><span class="leg-ic">${L.ic}</span><span class="leg-nom">${L.nom}</span>${owned?'<span class="leg-on">✓</span>':''}</div><div class="leg-desc">${L.desc}</div>${owned?'<span class="leg-acq">Acquis</span>':`<button class="mini leg-btn" data-legend="${L.id}" ${afford?'':'disabled'}>${L.cost} ◆</button>`}</div>`; }).join('')}</div>
+    </div>
     <div class="savebox" style="border-color:var(--ember-soft);">
       <div class="sb-h">Déblocages</div>
       <p class="sb-note">Du contenu permanent que tu débloques en jouant — il rejoint le jeu pour toutes tes prochaines battues.</p>
@@ -2514,6 +2556,7 @@ function bind(){
   }
   else if(ui.screen==='lair'){
     bindEach('[data-buy]',el=>buyMeta(el.dataset.buy));
+    bindEach('[data-legend]',el=>buyLegend(el.dataset.legend));
     const sc=$('save-copy'); if(sc) sc.onclick=()=>{ const o=$('save-out'); if(!o) return; try{ o.focus(); o.select&&o.select(); }catch(e){}
       const done=()=>toast('Sauvegarde copiée.'); if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(o.value).then(done).catch(()=>{ try{document.execCommand('copy');}catch(_){} done(); }); } else { try{document.execCommand('copy');}catch(_){} done(); } };
     const si=$('save-import'); if(si) si.onclick=()=>{ const f=$('save-in'); const v=(f&&f.value||'').trim(); if(!v){ toast('Colle d’abord un code.'); return; } if(importSave(v)){ toast('Progression restaurée !'); render(); } else toast('Code de sauvegarde invalide.'); };
