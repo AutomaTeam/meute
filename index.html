@@ -23,6 +23,8 @@
   --blood:#d0594d; --blood-soft:rgba(208,89,77,.16);
   --heal:#74ad6f;
   --steel:#6f9bc4; --amethyst:#a982cf; --gold:#d9b25b;
+  --steel-soft:rgba(111,155,196,.16); --amethyst-soft:rgba(169,130,207,.16); --gold-soft:rgba(217,178,91,.16); --heal-soft:rgba(116,173,111,.16);
+  --accent:#e0913f; --accent-soft:rgba(224,145,63,.14);
   --sans:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   --mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
 }
@@ -640,7 +642,7 @@ button.unit:hover:not(:disabled){border-color:var(--line2);}
 
 /* ===== POLISH GLOBAL : plus accrocheur ===== */
 body{background:
-  radial-gradient(120% 78% at 50% -12%, rgba(224,145,63,.11), transparent 52%),
+  radial-gradient(120% 78% at 50% -12%, var(--accent-soft), transparent 54%),
   radial-gradient(110% 60% at 50% 112%, rgba(208,89,77,.07), transparent 55%),
   var(--bg);background-attachment:fixed;}
 *::-webkit-scrollbar{width:10px;height:10px;}
@@ -690,6 +692,14 @@ body{background:
 .rs-grid>div{text-align:center;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 6px;}
 .rs-grid b{display:block;font-family:var(--mono);font-size:20px;color:var(--ink);}
 .rs-grid span{font-size:11px;color:var(--dim);}
+.unlock-row{display:flex;align-items:center;gap:9px;padding:7px 2px;border-top:1px solid var(--line);font-size:12.5px;}
+.unlock-row:first-of-type{border-top:none;}
+.ul-ic{font-size:13px;color:var(--faint);}
+.unlock-row.done .ul-ic{color:var(--heal);}
+.ul-n{flex:1;color:var(--dim);}
+.unlock-row.done .ul-n{color:var(--ink);}
+.ul-how{font-size:11px;color:var(--faint);font-family:var(--mono);}
+.unlock-row.done .ul-how{color:var(--heal);}
 
 /* ===== VFX & POLISH ===== */
 #flash{position:fixed;inset:0;z-index:58;pointer-events:none;opacity:0;transition:opacity .4s ease;mix-blend-mode:screen;}
@@ -711,6 +721,38 @@ body{background:
 .unit.hero.low .portrait::before{animation:lowpulse 1s ease-in-out infinite;background:radial-gradient(circle,rgba(208,89,77,.45),transparent 70%);}
 @keyframes lowpulse{0%,100%{opacity:.35;}50%{opacity:1;}}
 @media (prefers-reduced-motion: reduce){ .unit .u-bar i::after{animation:none;display:none;} }
+
+/* ============================================================ */
+/* ===== THÈME PAR ZONE — couleur d'identité par écran ===== */
+/* ============================================================ */
+.top{border-bottom:1px solid var(--accent-soft);}
+.top .mk .claw{color:var(--accent);transition:color .3s ease;}
+.top .brand{color:var(--accent);}
+.top .wave{color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-soft);border-radius:9px;padding:3px 10px;font-weight:600;}
+.top .wave i{color:var(--accent);opacity:.55;}
+.sect-label{color:var(--accent);opacity:.92;letter-spacing:.2em;}
+.rb-h{color:var(--accent);display:flex;align-items:center;gap:7px;}
+.rb-h::before{content:'';width:3px;height:12px;background:var(--accent);border-radius:2px;display:inline-block;flex:none;}
+.tabs{border-bottom-color:var(--accent-soft);}
+.tabs .tab.on{color:var(--accent);border-bottom-color:var(--accent);}
+.depthbar i{background:var(--accent);}
+.turnbar{border-top:2px solid var(--accent-soft);}
+.hintbox{border-left:3px solid var(--accent-soft);}
+.enc-ic{color:var(--accent);background:radial-gradient(circle at 50% 34%,var(--accent-soft),#1a1714 64%,#0b0a08);}
+.wallet{border-color:var(--accent-soft);}
+.lair-head h2{color:var(--accent);}
+.act:hover:not(:disabled){border-color:var(--accent);color:var(--accent);}
+/* Camp : chaque onglet a sa couleur de zone */
+.camptabs .tab[data-tab="equipe"] .tab-ic{color:var(--steel);}
+.camptabs .tab[data-tab="talents"] .tab-ic{color:var(--amethyst);}
+.camptabs .tab[data-tab="forge"] .tab-ic{color:var(--ember);}
+.camptabs .tab[data-tab="sac"] .tab-ic{color:var(--gold);}
+.camptabs .tab.on .tab-ic{filter:drop-shadow(0 0 6px currentColor);}
+.camptabs .tab.on .tab-l{color:var(--accent);}
+/* bandeau de zone discret en haut de chaque vue */
+.top{position:relative;}
+.top::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.55;border-radius:2px;}
 </style>
 </head>
 <body>
@@ -771,6 +813,11 @@ const CLASSES={
     pid:'coupfourre', passive:{nom:'Coup fourré',desc:'+20% de chances de coup critique sur ses attaques de base.'},
     skill:{nom:'Éventration',desc:'Coup vicieux, forte chance de critique.',cd:2,kind:'st_dmg',mult:1.6,crit:0.5},
     skillB:{nom:'Lame empoisonnée',desc:'Empoisonne une cible : dégâts pendant 3 rounds.',cd:3,kind:'dot_st',turns:3}},
+  ecorcheur:{nom:'Écorcheur',role:'Berserker',dmg:'phys',base:{pv:50,atk:17,def:3,vit:8},
+    desc:'Plus il saigne, plus il frappe — un fauve qu’on lâche, pas qu’on dirige.',
+    pid:'frenesie', passive:{nom:'Frénésie',desc:'Ses dégâts augmentent à mesure qu’il perd des PV (jusqu’à +50%).'},
+    skill:{nom:'Déchaînement',desc:'Frappe brutale sur une cible, forte chance de critique.',cd:2,kind:'st_dmg',mult:2.0,crit:0.4},
+    skillB:{nom:'Tourbillon',desc:'Fauche tous les ennemis d’un grand arc.',cd:3,kind:'aoe_dmg',mult:1.1}},
 };
 const SKILLB_COST={essence:3, os:2};
 
@@ -817,12 +864,16 @@ const RELICS=[
   {id:'rempart_mobile',ic:'⊡',nom:'Rempart mobile',desc:'Chaque chasseur gagne 6 de bouclier en fin de round.'},
   {id:'second_souffle',ic:'✦',nom:'Second souffle',desc:'Une fois par combat, un chasseur survit à 1 PV au lieu de tomber.'},
   {id:'maitre_forgeron',ic:'⚒',nom:'Maître forgeron',desc:'Renforcer un équipement coûte 30% d’Or en moins.'},
+  {id:'oeil_du_titan',ic:'☉',nom:'Œil du titan',desc:'+10% de dégâts et +10% PV maximum.',locked:true},
+  {id:'serment_de_cendre',ic:'⛧',nom:'Serment de cendre',desc:'Toute l’escouade débute chaque combat avec 16 de bouclier.',locked:true},
 ];
 function relicById(id){ return RELICS.find(r=>r.id===id); }
+function relicUnlocked(id){ const r=relicById(id); if(!r||!r.locked) return true; return ((meta.unlocked&&meta.unlocked.relics)||[]).includes(id); }
+function availRelics(){ return RELICS.filter(r=>relicUnlocked(r.id)&&!hasRelic(r.id)); }
 function hasRelic(id){ return !!(g && g.relics && g.relics.includes(id)); }
-function relicsLeft(){ return RELICS.some(r=>!hasRelic(r.id)); }
+function relicsLeft(){ return availRelics().length>0; }
 function addRelic(id){ if(!g.relics) g.relics=[]; if(g.relics.includes(id)) return null; g.relics.push(id); if(id==='besace_ample') g.inv.potions+=2; return relicById(id); }
-function eGiveRelic(){ const pool=RELICS.filter(r=>!hasRelic(r.id)); if(!pool.length) return 'mais rien ne répond'; const r=pick(pool); addRelic(r.id); return `${r.ic} ${r.nom}`; }
+function eGiveRelic(){ const pool=availRelics(); if(!pool.length) return 'mais rien ne répond'; const r=pick(pool); addRelic(r.id); return `${r.ic} ${r.nom}`; }
 function relicBar(){ if(!g.relics||!g.relics.length) return ''; return `<div class="relics">${g.relics.map(id=>{ const r=relicById(id); return `<span class="relic" data-inspect="relic:${id}" title="${r.nom} — ${r.desc}">${r.ic}</span>`; }).join('')}</div>`; }
 function monPool(w){
   if(w<=2) return ['gobelin','loup','vipere'];
@@ -848,8 +899,16 @@ let meta=Store.get('meute_meta')||{};
 meta.best=meta.best||0; meta.runs=meta.runs||0; meta.wins=meta.wins||0;
 meta.trophies=meta.trophies||0;
 meta.perilMax=meta.perilMax||0; meta.peril=Math.min(meta.peril||0, meta.perilMax); if(meta.sfx===undefined) meta.sfx=true;
+meta.unlocked=meta.unlocked||{}; meta.unlocked.classes=meta.unlocked.classes||[]; meta.unlocked.relics=meta.unlocked.relics||[]; meta.kills=meta.kills||0;
 meta.upgrades=Object.assign({vigueur:0,crocs:0,butin:0,instinct:0}, meta.upgrades||{});
 function save(){ Store.set('meute_meta',meta); }
+const UNLOCKS=[
+  {id:'ecorcheur', type:'class', nom:'Écorcheur (classe)', cond:m=>(m.best||0)>=20, how:'Atteins la vague 20'},
+  {id:'oeil_du_titan', type:'relic', nom:'Œil du titan (relique)', cond:m=>(m.wins||0)>=1, how:'Remporte une battue'},
+  {id:'serment_de_cendre', type:'relic', nom:'Serment de cendre (relique)', cond:m=>(m.perilMax||0)>=2, how:'Débloque le Péril 2'},
+];
+function isUnlocked(id){ const u=meta.unlocked||{}; return (u.classes||[]).includes(id)||(u.relics||[]).includes(id); }
+function checkUnlocks(){ const got=[]; UNLOCKS.forEach(u=>{ if(!isUnlocked(u.id) && u.cond(meta)){ if(u.type==='class') meta.unlocked.classes.push(u.id); else meta.unlocked.relics.push(u.id); got.push(u); } }); if(got.length) save(); return got; }
 function perilMods(){ const p=meta.peril||0; return { p, monPv:(p>=1?12:0)+(p>=5?12:0), monAtk:(p>=2?12:0)+(p>=8?15:0), healMul:(p>=4?0.85:1), shopMul:(p>=6?1.25:1), potionPenalty:(p>=3?1:0) }; }
 function healScale(v){ return Math.max(0,Math.round(v*perilMods().healMul)); }
 const PERIL_DESC=['Difficulté normale.','Monstres +12% PV.','Monstres +12% PV et +12% ATQ.','… et −1 potion de départ.','… et soins −15%.','… monstres +24% PV au total.','… marché +25% plus cher.','… combats d’élite renforcés.','Apocalypse — monstres +39% ATQ.'];
@@ -860,6 +919,7 @@ function importSave(code){ try{ const o=JSON.parse(decodeURIComponent(escape(ato
   meta.best=meta.best||0; meta.runs=meta.runs||0; meta.wins=meta.wins||0; meta.trophies=meta.trophies||0;
   meta.upgrades=Object.assign({vigueur:0,crocs:0,butin:0,instinct:0}, meta.upgrades||{});
   meta.perilMax=meta.perilMax||0; meta.peril=Math.min(meta.peril||0,meta.perilMax); if(meta.sfx===undefined) meta.sfx=true;
+  meta.unlocked=meta.unlocked||{}; meta.unlocked.classes=meta.unlocked.classes||[]; meta.unlocked.relics=meta.unlocked.relics||[]; meta.kills=meta.kills||0;
   save(); return true; }catch(e){ return false; } }
 const META_TREE=[
   {id:'vigueur', nom:'Vigueur', ic:'⛨', nodes:[
@@ -930,11 +990,14 @@ function heroStats(h){
   def+=perkSum(h,'defFlat');
   pvMax*=1+metaMods().hpPct/100;
   pvMax*=1+perkSum(h,'hpPct')/100;
+  if(hasRelic('oeil_du_titan')) pvMax*=1.1;
   return {pvMax:Math.round(pvMax),atk:Math.round(atk),def:Math.round(def),vit:Math.round(vit)};
 }
 function heroAtk(h){ let a=heroStats(h).atk;
   if(CLASSES[h.cls].pid==='precision') a*=1.2;
   a*=1+perkSum(h,'dmgPct')/100;
+  if(CLASSES[h.cls].pid==='frenesie'){ const _pm=heroStats(h).pvMax||1; a*=1+(1-Math.max(0,h.pv)/_pm)*0.5; }
+  if(hasRelic('oeil_du_titan')) a*=1.1;
   if(g.buffAtk && g.buffAtk.turns>0) a*=(1+g.buffAtk.pct);
   return a; }
 function heroHasProp(h,p){ return ['arme','armure','talisman'].some(sl=>h.gear[sl]&&h.gear[sl].prop===p); }
@@ -1029,7 +1092,7 @@ function newRun(thirdClass){
   g.peril=meta.peril||0; g.inv.potions=Math.max(0,g.inv.potions-perilMods().potionPenalty);
   if(M.mats){ ['cuir','croc','fer'].forEach(k=>g.inv.mats[k]+=M.mats); }
   if(M.skillB){ g.team.forEach(h=>{ h.skillBunlocked=true; }); }
-  { let nRel=(M.startRelic?1:0); if(M.startRelic2) nRel=2; for(let z=0;z<nRel;z++){ if(relicsLeft()) addRelic(pick(RELICS.filter(r=>!hasRelic(r.id))).id); } }
+  { let nRel=(M.startRelic?1:0); if(M.startRelic2) nRel=2; for(let z=0;z<nRel;z++){ if(relicsLeft()) addRelic(pick(availRelics()).id); } }
   genMap();
   g.secondWind=false; clearRun(); saveRun();
   meta.runs=(meta.runs||0)+1; save();
@@ -1123,15 +1186,23 @@ function makeMon(id, w, elite){
   return {tmpl:id, nom:t.nom, pvMax, pv:pvMax, atk, def, vit:t.vit, magic:!!t.magic, boss:!!t.boss, heal:!!t.heal,
     elite:elite||null, eliteNom, enraged:false, exploded:false, dot:null};
 }
+const CHAMPIONS={
+  1:{nom:'Mâchefer le Brise-os', pvMul:0.55, atkMul:1.2, ability:'brise'},
+  2:{nom:'Sève-Noire la Ronce', pvMul:0.62, atkMul:0.85, ability:'venin'},
+  3:{nom:'le Charnier', pvMul:0.66, atkMul:0.9, ability:'meute'},
+  4:{nom:'la Cendre-Reine', pvMul:0.72, atkMul:1.0, ability:'brasier'},
+};
 function buildEncounter(depth, kind){
   g.mons=[];
   if(kind==='boss'){
     const b=makeMon('behemoth',depth);
-    if(depth<WAVES){ b.pvMax=Math.round(b.pvMax*0.6); b.pv=b.pvMax; b.atk=Math.round(b.atk*0.9); b.nom='Champion des cendres'; }
+    if(depth<WAVES){ const act=Math.round(depth/10); const C=CHAMPIONS[act]||CHAMPIONS[1];
+      b.pvMax=Math.round(b.pvMax*C.pvMul); b.pv=b.pvMax; b.atk=Math.round(b.atk*C.atkMul); b.nom=C.nom; b.champ=C.ability; }
     g.mons.push(b);
     const pool=monPool(depth);
     g.mons.push(makeMon(pick(pool),depth));
     g.mons.push(makeMon(pick(pool),depth));
+    if(b.champ==='meute') g.mons.push(makeMon(pick(pool),depth));
     return;
   }
   const count = depth<=2?rint(1,2) : depth<=5?rint(2,3) : 3;
@@ -1151,6 +1222,7 @@ function startCombat(depth, kind){
   { const ms=metaMods().shield; if(ms) g.team.forEach(h=>{ if(h.pv>0) h.shield=(h.shield||0)+ms; }); }
   g.team.forEach(h=>{ if(h.pv>0){ const ps=perkSum(h,'shield'); if(ps) h.shield=(h.shield||0)+ps; } });
   { const sa=g.team.reduce((m,h)=>Math.max(m,(h.pv>0?perkSum(h,'shieldAll'):0)),0); if(sa) g.team.forEach(h=>{ if(h.pv>0) h.shield=(h.shield||0)+sa; }); }
+  if(hasRelic('serment_de_cendre')) g.team.forEach(h=>{ if(h.pv>0) h.shield=(h.shield||0)+16; });
   g.buffAtk=null; g.secondWind=false;
   ui.screen='combat'; ui.target=firstLivingMon(); ui._fx=[];
   beginRound();
@@ -1199,7 +1271,12 @@ function decideIntent(m,i){
   if(m.boss && !m.enraged && m.pv>0 && m.pv < m.pvMax*0.5){ m.enraged=true; m.atk=Math.round(m.atk*1.35); fx('mon-'+i,'FURIE','crit'); clog(`${m.nom} entre en furie !`); }
   if(m.heal){ const w=g.mons.some((x,j)=>j!==i && x.pv>0 && x.pv<x.pvMax); if(w){ m.intent={kind:'heal'}; return; } }
   if(m.tmpl==='totemiste'){ const a=g.mons.some(x=>x!==m && x.pv>0 && !x.enraged); if(a){ m.intent={kind:'buff'}; return; } }
-  if(m.boss){ m.intent=chance(m.enraged?0.5:0.32)?{kind:'aoe'}:{kind:'attack'}; return; }
+  if(m.boss){ const enr=m.enraged;
+    if(m.champ==='venin'){ m.intent=chance(0.45)?{kind:'venin'}:{kind:'attack'}; return; }
+    if(m.champ==='meute'){ const canRally=g.mons.some(x=>x!==m && x.pv>0 && !x.enraged); m.intent=(canRally&&chance(0.45))?{kind:'rally'}:(chance(enr?0.45:0.28)?{kind:'aoe'}:{kind:'attack'}); return; }
+    if(m.champ==='brasier'){ m.intent=chance(enr?0.65:0.45)?{kind:'aoe'}:{kind:'attack'}; return; }
+    if(m.champ==='brise'){ m.intent={kind:'attack',big:true}; return; }
+    m.intent=chance(enr?0.5:0.32)?{kind:'aoe'}:{kind:'attack'}; return; }
   m.intent={kind:'attack'};
 }
 function decideIntents(){ g.mons.forEach((m,i)=>{ if(m.pv>0) decideIntent(m,i); else m.intent=null; }); }
@@ -1297,12 +1374,23 @@ function resolveMon(m,i){
     g.team.forEach((h,hi)=>{ if(h.pv>0){ let d=computeDmg(Math.round(m.atk*0.7),heroStats(h).def,m.magic); applyHeroDamage(h,hi,d); } });
     shake(); flashScreen('rgba(208,89,77,.18)'); clog(`${m.nom} déchaîne une attaque de zone !`); return;
   }
+  if(it.kind==='venin'){
+    const liv0=g.team.map((h,hi)=>({h,hi})).filter(o=>o.h.pv>0); if(!liv0.length) return;
+    liv0.sort((a,b)=>a.h.pv-b.h.pv); const tt=liv0[0];
+    let dd=computeDmg(Math.round(m.atk*0.6),heroStats(tt.h).def,true); applyHeroDamage(tt.h,tt.hi,dd);
+    if(tt.h.pv>0) tt.h.poison={dmg:Math.round(m.atk*0.5),turns:3};
+    clog(`${m.nom} inocule un venin à ${tt.h.nom} !`); return;
+  }
+  if(it.kind==='rally'){
+    const aIdx=g.mons.findIndex(x=>x!==m && x.pv>0 && !x.enraged);
+    if(aIdx>=0){ const a=g.mons[aIdx]; a.enraged=true; a.atk=Math.round(a.atk*1.3); fx('mon-'+aIdx,'▲','crit'); clog(`${m.nom} galvanise ${a.nom} !`); return; }
+  }
   const liv=g.team.map((h,hi)=>({h,hi})).filter(o=>o.h.pv>0);
   if(!liv.length) return;
   liv.sort((a,b)=>a.h.pv-b.h.pv);
   const taunters=liv.filter(o=>perkSum(o.h,'taunt')>0);
   const t=taunters.length?taunters[0]:liv[0];
-  let d=computeDmg(m.atk,heroStats(t.h).def,m.magic);
+  let d=computeDmg(m.atk,heroStats(t.h).def,m.magic); if(it.big) d=Math.round(d*1.4);
   const lost=applyHeroDamage(t.h,t.hi,d); clog(`${m.nom} blesse ${t.h.nom} · ${lost}`);
   const th=perkSum(t.h,'thorns'); if(th>0 && lost>0 && m.pv>0){ const r=Math.max(1,Math.round(lost*th)); m.pv=Math.max(0,m.pv-r); fx('mon-'+i,'-'+r,'dmg'); }
   if(m.tmpl==='veuve' && t.h.pv>0) t.h.poison={dmg:Math.round(m.atk*0.4),turns:3};
@@ -1358,6 +1446,8 @@ function gameOver(win){
   const earned=Math.round(trophiesFor(reached,win)*(1+(meta.peril||0)*0.3)); meta.trophies=(meta.trophies||0)+earned;
   meta.best=Math.max(meta.best||0,reached); ui.perilUp=false;
   if(win){ meta.wins=(meta.wins||0)+1; if((meta.peril||0)>=(meta.perilMax||0) && (meta.perilMax||0)<8){ meta.perilMax=(meta.perilMax||0)+1; ui.perilUp=true; } }
+  if(g&&g.stats) meta.kills=(meta.kills||0)+(g.stats.kills||0);
+  const newU=checkUnlocks(); ui.unlocked=newU.map(u=>u.nom);
   save(); sfx(win?'win':'lose');
   ui.summary=(g&&g.stats)?{kills:g.stats.kills,gold:g.stats.gold,crits:g.stats.crits,relics:(g.relics||[]).length,peril:meta.peril||0}:null;
   clearRun();
@@ -1417,7 +1507,7 @@ function openRest(){
     ]});
 }
 function gearOption(it, mat){ return {label:gearName(it), sub:`${it.rarity} · ${plainStats(it)}${it.prop?' · '+PROP_LABEL[it.prop]:''} · ${deltaVerdict(it)}`, run(e){ g.inv.gear.push(it); eGainMat(mat,3); e.result=`Tu choisis ${gearName(it)}, plus 3 ${MAT_LABEL[mat]}.`; e.resolved=true; }}; }
-function relicOption(){ const r=pick(RELICS.filter(x=>!hasRelic(x.id))); return {label:`${r.ic} ${r.nom}`, sub:`Artefact — ${r.desc}`, run(e){ addRelic(r.id); e.result=`Tu scelles un artefact : ${r.nom}.`; e.resolved=true; }}; }
+function relicOption(){ const r=pick(availRelics()); return {label:`${r.ic} ${r.nom}`, sub:`Artefact — ${r.desc}`, run(e){ addRelic(r.id); e.result=`Tu scelles un artefact : ${r.nom}.`; e.resolved=true; }}; }
 function openTreasure(depth){
   const mat=pick(MATS);
   const opts=[ gearOption(genGear(rollRarity(depth+2,false),depth), mat) ];
@@ -1510,12 +1600,13 @@ const CLASS_WEIGHTS={
   mage:{atk:1.7,def:0.5,pvMax:0.7,vit:0.7},
   soigneur:{atk:0.9,def:1.1,pvMax:1.3,vit:0.6},
   roublard:{atk:1.5,def:0.5,pvMax:0.6,vit:1.2},
+  ecorcheur:{atk:1.7,def:0.4,pvMax:0.8,vit:1.0},
 };
 const STAT_NORM={atk:8,def:7,pvMax:24,vit:6};
 const PROP_AFF={
-  vampirique:{guerriere:0.8,archere:0.6,mage:0.4,soigneur:0.2,roublard:0.7},
-  aiguise:{guerriere:0.4,archere:0.6,mage:0.2,soigneur:0.1,roublard:0.9},
-  vif:{guerriere:0.3,archere:0.3,mage:0.8,soigneur:0.8,roublard:0.3},
+  vampirique:{guerriere:0.8,archere:0.6,mage:0.4,soigneur:0.2,roublard:0.7,ecorcheur:0.9},
+  aiguise:{guerriere:0.4,archere:0.6,mage:0.2,soigneur:0.1,roublard:0.9,ecorcheur:0.7},
+  vif:{guerriere:0.3,archere:0.3,mage:0.8,soigneur:0.8,roublard:0.3,ecorcheur:0.4},
 };
 function itemScore(it,h){ const w=CLASS_WEIGHTS[h.cls]||CLASS_WEIGHTS.guerriere; const o=it.stats||{};
   let s=((o.atk||0)/STAT_NORM.atk)*w.atk + ((o.def||0)/STAT_NORM.def)*w.def + ((o.pvMax||0)/STAT_NORM.pvMax)*w.pvMax + ((o.vit||0)/STAT_NORM.vit)*w.vit;
@@ -1597,9 +1688,12 @@ function intentLabel(m){
   const k=(m.intent||{}).kind||'attack';
   if(k==='heal') return '✚ soin';
   if(k==='buff') return '▲ rage';
+  if(k==='venin') return '☠ venin';
+  if(k==='rally') return '▲ rage';
   if(k==='aoe') return `✸ ${previewHeroDmg(m,true)}`;
   const extra=(m.tmpl==='veuve'?' <span class="it-x">☠</span>':'')+(m.elite==='veloce'?' <span class="it-x">×2</span>':'');
-  return `⚔ ${previewHeroDmg(m,false)}${extra}`;
+  const big=(m.intent||{}).big;
+  return `${big?'⚔!':'⚔'} ${big?Math.round(previewHeroDmg(m,false)*1.4):previewHeroDmg(m,false)}${extra}`;
 }
 function emb(inner,cls){ return `<svg class="emb ${cls||''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`; }
 const SIG={
@@ -1623,6 +1717,7 @@ const SIG={
     mage:'<path d="M7 21 L14.5 8.5"/><circle cx="16" cy="6.5" r="3"/><path d="M16 3 V10"/><path d="M12.5 6.5 H19.5"/>',
     soigneur:'<path d="M8 5.5 H16 L15 11 Q12 14 9 11 Z"/><path d="M12 14 V19"/><path d="M9 19 H15"/><path d="M12 2 V4"/><path d="M9.2 2.8 L10.2 4.6"/><path d="M14.8 2.8 L13.8 4.6"/>',
     roublard:'<path d="M5.5 5.5 L15 15"/><path d="M5.5 5.5 L8 5.5 L6.5 8 Z" fill="currentColor" stroke="none"/><path d="M15 15 L17.5 17.5"/><path d="M18.5 5.5 L9 15"/><path d="M18.5 5.5 L16 5.5 L17.5 8 Z" fill="currentColor" stroke="none"/><path d="M9 15 L6.5 17.5"/>',
+    ecorcheur:'<path d="M5 19.5 L12.5 12"/><path d="M11.5 10.5 Q20 9 19.5 16.5 Q14 17.5 11 13 Z"/><path d="M4.2 20.3 L6.6 17.9"/>',
     _:'<circle cx="12" cy="12" r="7"/>'
   },
   node:{
@@ -1665,7 +1760,7 @@ function actIc(k){ const spark='<path d="M12 3 L13.6 9.2 L20 11 L13.6 12.8 L12 1
 function depthBar(d){ const p=Math.max(2,Math.min(100,Math.round(d/WAVES*100))); return `<div class="depthbar" title="Profondeur ${d}/${WAVES}"><i style="width:${p}%"></i></div>`; }
 function monGlyph(m){ return emb(SIG.mon[m.boss?'boss':m.tmpl]||SIG.mon._); }
 function heroGlyph(cls){ return emb(SIG.hero[cls]||SIG.hero._); }
-const PORTRAIT_COL={ guerriere:['#7fb0d8','#26384a'], archere:['#f0a24f','#4a3320'], mage:['#bd95e0','#3a2a4d'], soigneur:['#86c481','#244026'], roublard:['#e6c062','#463a1f'], _mon:['#e0695c','#3a1f1c'], _boss:['#ff7a5c','#4d1d18'] };
+const PORTRAIT_COL={ guerriere:['#7fb0d8','#26384a'], archere:['#f0a24f','#4a3320'], mage:['#bd95e0','#3a2a4d'], soigneur:['#86c481','#244026'], roublard:['#e6c062','#463a1f'], ecorcheur:['#e07a55','#3f2218'], _mon:['#e0695c','#3a1f1c'], _boss:['#ff7a5c','#4d1d18'] };
 function portraitColors(kind,id,boss){ if(kind==='hero') return PORTRAIT_COL[id]||['#f0a24f','#3a2a1a']; return boss?PORTRAIT_COL._boss:PORTRAIT_COL._mon; }
 function bigPortrait(kind,id,boss){ const glyph=kind==='hero'?(SIG.hero[id]||SIG.hero._):(SIG.mon[boss?'boss':id]||SIG.mon._); const col=portraitColors(kind,id,boss); const gid=(kind+'_'+(boss?'b_':'')+id).replace(/[^a-z0-9_]/gi,'');
   return `<svg class="bigpix" viewBox="0 0 100 100" aria-hidden="true">
@@ -1755,7 +1850,8 @@ function viewCodex(){
     <button class="cta" id="cx-back">◂ Retour</button>`;
 }
 function viewChoose(){
-  const opts=['mage','soigneur','roublard'].map(id=>{ const c=CLASSES[id];
+  const pool3=['mage','soigneur','roublard'].concat(((meta.unlocked&&meta.unlocked.classes)||[]).filter(c=>CLASSES[c]));
+  const opts=pool3.map(id=>{ const c=CLASSES[id];
     return `<button class="pick" data-pick="${id}">
       <div class="pick-head"><div class="pick-port">${bigPortrait('hero',id)}</div><div><div class="pick-name">${c.nom}</div><div class="pick-role">${c.role}</div></div></div>
       <div class="pick-flavor">${c.desc}</div>
@@ -1894,6 +1990,11 @@ const PERKS={
     {id:'saignee',nom:'Saignée',desc:'Ses attaques le soignent de 20% des dégâts infligés.',cost:{croc:3,essence:1},eff:{lifesteal:0.2}},
     {id:'lame_rapide',nom:'Lame rapide',desc:'Recharges de compétences −1.',cost:{essence:2,os:2},eff:{cd:1}},
   ],
+  ecorcheur:[
+    {id:'rage_noire',nom:'Rage noire',desc:'+18% de dégâts.',cost:{croc:3,fer:2},eff:{dmgPct:18}},
+    {id:'soif_de_sang',nom:'Soif de sang',desc:'Ses attaques le soignent de 25% des dégâts.',cost:{croc:3,os:1},eff:{lifesteal:0.25}},
+    {id:'cuir_tanne',nom:'Cuir tanné',desc:'+18% PV maximum.',cost:{cuir:3,os:2},eff:{hpPct:18}},
+  ],
 };
 function perkSum(h,key){ let s=0; const arr=PERKS[h.cls]||[]; (h.perks||[]).forEach(id=>{ const p=arr.find(x=>x.id===id); if(p&&p.eff&&p.eff[key]) s+=p.eff[key]; }); return s; }
 function buyPerk(i,id){ const h=g.team[i]; if(!h.perks) h.perks=[]; if(h.perks.includes(id)) return; const p=(PERKS[h.cls]||[]).find(x=>x.id===id); if(!p||!canAfford(p.cost)) return; spend(p.cost); h.perks.push(id); toast(`${h.nom} maîtrise « ${p.nom} » !`); render(); }
@@ -2008,7 +2109,7 @@ function viewMap(){
       return `<button class="mnode ${cls} t-${n.type}" ${isFocus?'id="map-here"':''} ${st==='reach'?`data-node="${r}:${i}"`:'disabled'}>
         <span class="mn-ic">${nodeSvg(n.type)}</span><span class="mn-lb">${md.label}</span></button>`;
     }).join('');
-    if(depth%10===0) rowsHtml+=`<div class="map-act ${depth>=WAVES?'final':''}">Acte ${depth/10} — ${depth>=WAVES?'le Béhémoth':'Champion des cendres'}</div>`;
+    if(depth%10===0) rowsHtml+=`<div class="map-act ${depth>=WAVES?'final':''}">Acte ${depth/10} — ${depth>=WAVES?'le Béhémoth':(CHAMPIONS[depth/10]?CHAMPIONS[depth/10].nom:'Champion')}</div>`;
     rowsHtml+=`<div class="mrow">${cells}</div>`;
   }
   let _lines='';
@@ -2097,6 +2198,11 @@ function viewLair(){
       <div class="troph-bal">Trophées disponibles : <b>${meta.trophies||0} ◆</b></div>
     </div>
     <div class="tree">${branches}</div>
+    <div class="savebox" style="border-color:var(--ember-soft);">
+      <div class="sb-h">Déblocages</div>
+      <p class="sb-note">Du contenu permanent que tu débloques en jouant — il rejoint le jeu pour toutes tes prochaines battues.</p>
+      ${UNLOCKS.map(u=>`<div class="unlock-row ${isUnlocked(u.id)?'done':''}"><span class="ul-ic">${isUnlocked(u.id)?'✓':'🔒'}</span><span class="ul-n">${u.nom}</span><span class="ul-how">${isUnlocked(u.id)?'débloqué':u.how}</span></div>`).join('')}
+    </div>
     <div class="savebox">
       <div class="sb-h">Sauvegarde</div>
       <p class="sb-note">Copie ce code pour conserver ta progression ailleurs (Notes, mail…) ou pour la transférer sur un autre appareil. Colle un code puis « Restaurer » pour la recharger.</p>
@@ -2115,6 +2221,7 @@ function viewOver(){
     <div class="troph-won">+${ui.earned||0} Trophées ◆ <span class="twn-sub">profondeur ${ui.finalWave}${ui.win?' + victoire':''}${(meta.peril||0)?' · péril '+meta.peril:''}</span></div>
     ${ui.perilUp?`<div class="peril-up">⚠ Nouveau <b>Péril ${meta.perilMax}</b> débloqué — relève le défi depuis le menu.</div>`:''}
     ${ui.summary?`<div class="run-summary"><div class="rs-h">Bilan de la battue</div><div class="rs-grid"><div><b>${ui.summary.kills}</b><span>monstres abattus</span></div><div><b>${ui.summary.gold}</b><span>Or amassé</span></div><div><b>${ui.summary.crits}</b><span>coups critiques</span></div><div><b>${ui.summary.relics}</b><span>reliques scellées</span></div></div></div>`:''}
+    ${(ui.unlocked&&ui.unlocked.length)?`<div class="peril-up">★ Nouveau déblocage : <b>${ui.unlocked.join(' · ')}</b></div>`:''}
     <button class="cta" id="again">Rejouer</button>
     <button class="btn2 wide" id="to-lair">Arbre de la meute · ${meta.trophies||0} ◆ à dépenser</button>
     <p class="rec">Record : profondeur ${meta.best} · ${meta.wins||0} victoire(s)</p>
@@ -2132,6 +2239,16 @@ function initAmbiance(){ const e=document.getElementById('embers'); if(!e||e._do
     s.style.setProperty('--o',(0.22+Math.random()*0.4).toFixed(2));
     e.appendChild(s); }
 }
+function screenAccent(){
+  let c='--ember';
+  if(ui.screen==='combat') c='--blood';
+  else if(ui.screen==='shop') c='--gold';
+  else if(ui.screen==='loot') c='--heal';
+  else if(ui.screen==='lair') c='--amethyst';
+  else if(ui.screen==='codex'||ui.screen==='encounter') c='--steel';
+  else if(ui.screen==='camp') c = (ui.tab==='equipe'?'--steel':ui.tab==='talents'?'--amethyst':ui.tab==='sac'?'--gold':'--ember');
+  return { c:'var('+c+')', s:'var('+c+'-soft)' };
+}
 function render(){
   initAmbiance();
   const app=$('app'); if(!app) return;
@@ -2147,6 +2264,7 @@ function render(){
   else if(ui.screen==='camp') html=viewCamp();
   else if(ui.screen==='lair') html=viewLair();
   else if(ui.screen==='over') html=viewOver();
+  { const a=screenAccent(); try{ const r=document.documentElement.style; r.setProperty('--accent', a.c); r.setProperty('--accent-soft', a.s); }catch(e){} }
   app.innerHTML=html + inspectSheet();
   bind();
   flushFx();
