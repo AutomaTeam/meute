@@ -716,6 +716,32 @@ body{background:
 .unlock-row.done .ul-n{color:var(--ink);}
 .ul-how{font-size:11px;color:var(--faint);font-family:var(--mono);}
 .unlock-row.done .ul-how{color:var(--heal);}
+/* ===== FOG MAP ===== */
+.mnode.fog{opacity:.45;border-style:dashed;cursor:default;}
+.mnode.fog .mn-ic{font-size:15px;color:var(--faint);}
+.mnode.fog .mn-fog{font-family:var(--mono);}
+.mnode.fog .mn-lb{color:var(--faint);letter-spacing:.2em;}
+/* ===== TANIÈRE revamp ===== */
+.lair-bonus{max-width:780px;margin:0 auto 16px;border:1px solid var(--accent-soft);background:rgba(255,255,255,.02);border-radius:12px;padding:12px 15px;}
+.lb-h{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin-bottom:9px;}
+.chip.lbc{border-color:var(--accent-soft);color:var(--accent);background:rgba(255,255,255,.02);}
+.tbranch{border-top:3px solid var(--bc);border-radius:12px;}
+.tb-head{align-items:center;gap:10px;}
+.tb-med{width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:9px;font-size:16px;color:var(--bc);background:var(--bg);border:1px solid var(--bc);box-shadow:0 0 12px -3px var(--bc);}
+.tb-meta{flex:1;min-width:0;}
+.tb-sub{display:block;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-top:1px;}
+.tb-bar{height:4px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin-top:5px;}
+.tb-bar i{display:block;height:100%;border-radius:3px;transition:width .4s ease;}
+.tb-lvl{align-self:flex-start;}
+.tn-link{width:2px;height:9px;margin:0 auto;opacity:.4;}
+.tnode{border-left:3px solid transparent;}
+.tnode.owned{border-color:var(--line2);border-left-color:var(--bc);background:rgba(255,255,255,.02);}
+.tnode.owned .tn-name{color:var(--bc);}
+.tnode.avail{border-color:var(--line2);border-left-color:var(--bc);box-shadow:0 0 0 1px var(--bc) inset;}
+.tnode.avail:hover{box-shadow:0 0 16px -3px var(--bc),0 0 0 1px var(--bc) inset;transform:translateY(-1px);}
+.tnode.soon{border-left-color:var(--bc);opacity:.7;}
+.tn-on{color:var(--bc);font-family:var(--mono);font-weight:700;}
+.tn-cost{color:var(--bc);}
 
 /* ===== VFX & POLISH ===== */
 #flash{position:fixed;inset:0;z-index:58;pointer-events:none;opacity:0;transition:opacity .4s ease;mix-blend-mode:screen;}
@@ -1188,7 +1214,7 @@ function clog(t){ g.log.unshift(t); if(g.log.length>12) g.log.pop(); }
 function fx(targetId,txt,cls){ ui._fx.push({targetId,txt,cls}); if(cls==='crit'){ sfx('crit'); shake(); } else if(cls==='dmg') sfx('hit'); else if(cls==='heal') sfx('heal'); else if(cls==='shield') sfx('block'); }
 
 function makeMon(id, w, elite){
-  const t=MONSTERS[id]; const f=1+0.075*(w-1);
+  const t=MONSTERS[id]; const f=1+0.07*(w-1)+0.0008*(w-1)*(w-1);
   let pvMax=Math.round(t.pv*f*(t.boss?6:1));
   let atk=Math.round(t.atk*f*(t.boss?1.3:1));
   let def=Math.round(t.def*f);
@@ -1221,7 +1247,7 @@ function buildEncounter(depth, kind){
     if(b.champ==='meute') g.mons.push(makeMon(pick(pool),depth));
     return;
   }
-  const count = depth<=2?rint(1,2) : depth<=5?rint(2,3) : 3;
+  const count = depth<=3?rint(1,2) : depth<=10?rint(2,3) : depth<=30?3 : rint(3,4);
   const pool=monPool(depth);
   for(let i=0;i<count;i++) g.mons.push(makeMon(pick(pool),depth));
   if(kind==='elite'){
@@ -2121,15 +2147,19 @@ function viewLoot(){
 function viewMap(){
   const R=g.map.R, rows=g.map.rows;
   const focus = g.pos.row>=0 ? {r:g.pos.row,i:g.pos.node} : {r:0,i:0};
+  const curDepth = g.pos.row>=0 ? g.pos.row+1 : 0; const REVEAL=2;
   let rowsHtml='';
   for(let dr=0; dr<R; dr++){
     const r=R-1-dr; const depth=r+1;
     const cells=[0,1,2].map(slot=>{
       const i=rows[r].findIndex(n=>n.slot===slot);
       if(i<0) return `<div class="mnode empty"></div>`;
-      const n=rows[r][i]; const st=nodeState(r,i); const md=NODE[n.type];
+      const n=rows[r][i]; const st=nodeState(r,i);
       const cls=st==='reach'?'reach':st==='current'?'current':st==='visited'?'visited':'lock';
       const isFocus=(r===focus.r && i===focus.i);
+      const known = n.visited || st==='reach' || st==='current' || depth<=curDepth+REVEAL || depth%10===0 || depth%10===9;
+      if(!known) return `<button class="mnode fog" disabled><span class="mn-ic mn-fog">?</span><span class="mn-lb">···</span></button>`;
+      const md=NODE[n.type];
       return `<button class="mnode ${cls} t-${n.type}" ${isFocus?'id="map-here"':''} ${st==='reach'?`data-node="${r}:${i}"`:'disabled'}>
         <span class="mn-ic">${nodeSvg(n.type)}</span><span class="mn-lb">${md.label}</span></button>`;
     }).join('');
@@ -2197,30 +2227,41 @@ function viewShop(){
     <button class="cta sticky-cta" id="shop-leave">Quitter le marché ▸</button>`;
 }
 function buyRelicShop(){ if(!relicsLeft()||(g.inv.gold||0)<g.shop.relicCost) return; g.inv.gold-=g.shop.relicCost; const r=eGiveRelic(); toast('Relique acquise : '+r); render(); }
+const BRANCH_COL={vigueur:'var(--steel)',crocs:'var(--blood)',butin:'var(--gold)',instinct:'var(--amethyst)'};
+const BRANCH_SUB={vigueur:'Survie & défense',crocs:'Offense & critique',butin:'Économie & butin',instinct:'Utilité & soutien'};
 function viewLair(){
   const branches=META_TREE.map(br=>{
-    const lvl=metaLvl(br.id); const maxed=lvl>=br.nodes.length;
+    const lvl=metaLvl(br.id); const total=br.nodes.length; const maxed=lvl>=total; const col=BRANCH_COL[br.id]||'var(--ember)';
+    const pct=Math.round(lvl/total*100); const next=maxed?null:br.nodes[lvl];
     const nodes=br.nodes.map((nd,idx)=>{
       const owned=idx<lvl, avail=idx===lvl;
       const afford=avail && (meta.trophies||0)>=nd.cost;
       const cls=owned?'owned':avail?(afford?'avail':'soon'):'locked';
-      const tag=owned?'<span class="tn-on">✓ acquis</span>':`<span class="tn-cost">${nd.cost} ◆</span>`;
-      return `<button class="tnode ${cls}" ${afford?`data-buy="${br.id}"`:'disabled'}>
+      const tag=owned?'<span class="tn-on">✓</span>':`<span class="tn-cost">${nd.cost} ◆</span>`;
+      return `<button class="tnode ${cls}" style="--bc:${col}" ${afford?`data-buy="${br.id}"`:'disabled'}>
         <div class="tn-top"><span class="tn-name">${nd.nom}</span>${tag}</div>
-        <div class="tn-desc">${nd.desc}</div>
-      </button>`;
-    }).join('<div class="tn-link"></div>');
-    return `<div class="tbranch">
-      <div class="tb-head"><span class="tb-ic">${br.ic}</span><span class="tb-nom">${br.nom}</span><span class="tb-lvl ${maxed?'full':''}">${lvl}/${br.nodes.length}</span></div>
+        <div class="tn-desc">${nd.desc}</div></button>`;
+    }).join(`<div class="tn-link" style="background:${col}"></div>`);
+    return `<div class="tbranch" style="--bc:${col}">
+      <div class="tb-head"><span class="tb-med">${br.ic}</span><div class="tb-meta"><span class="tb-nom">${br.nom}</span><span class="tb-sub">${BRANCH_SUB[br.id]||''}</span><div class="tb-bar"><i style="width:${pct}%;background:${col}"></i></div></div><span class="tb-lvl ${maxed?'full':''}">${lvl}/${total}</span></div>
       <div class="tnodes">${nodes}</div>
     </div>`;
   }).join('');
+  const M=metaMods(); const bon=[];
+  if(M.hpPct) bon.push(`+${M.hpPct}% PV`); if(M.dmgPct) bon.push(`+${M.dmgPct}% dégâts`);
+  if(M.dmgTaken) bon.push(`−${Math.round(M.dmgTaken*100)}% dégâts subis`); if(M.crit) bon.push(`+${Math.round(M.crit*100)}% critique`);
+  if(M.shield) bon.push(`${M.shield} bouclier/combat`); if(M.cd) bon.push(`−1 recharge`); if(M.skillLvl) bon.push(`compétences +1 niveau`);
+  if(M.potions) bon.push(`+${M.potions} potions`); if(M.mats) bon.push(`+${M.mats} matériaux`); if(M.shopDisc) bon.push(`marché −${Math.round(M.shopDisc*100)}%`);
+  if(M.goldPct) bon.push(`+${M.goldPct}% Or`); if(M.startGold) bon.push(`+${M.startGold} Or`); if(M.regen) bon.push(`régén ${M.regen} PV/round`);
+  if(M.startRelic2) bon.push(`2 reliques au départ`); else if(M.startRelic) bon.push(`1 relique au départ`); if(M.skillB) bon.push(`2ᵉ compétence`);
+  const bonHtml = bon.length?`<div class="lair-bonus"><div class="lb-h">⚡ Puissance permanente active</div><div class="chips">${bon.map(b=>`<span class="chip lbc">${b}</span>`).join('')}</div></div>`:`<div class="lair-bonus"><div class="lb-h">Puissance permanente</div><p class="sb-note" style="margin:0">Aucune amélioration encore. Dépense tes Trophées ci-dessous pour renforcer la meute.</p></div>`;
   return `${topBar('Tanière')}
     <div class="lair-head">
       <h2>Arbre de la meute</h2>
-      <p class="lair-sub">Chaque battue rapporte des <b>Trophées ◆</b> selon la profondeur atteinte. Dépense-les pour renforcer durablement ta meute : les améliorations s’appliquent au départ de chaque nouvelle battue, pour aller toujours plus loin.</p>
+      <p class="lair-sub">Chaque battue rapporte des <b>Trophées ◆</b> selon la profondeur atteinte. Dépense-les pour renforcer durablement ta meute — les bonus s’appliquent au départ de chaque nouvelle battue.</p>
       <div class="troph-bal">Trophées disponibles : <b>${meta.trophies||0} ◆</b></div>
     </div>
+    ${bonHtml}
     <div class="tree">${branches}</div>
     <div class="savebox" style="border-color:var(--ember-soft);">
       <div class="sb-h">Déblocages</div>
