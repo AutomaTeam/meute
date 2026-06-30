@@ -754,6 +754,18 @@ body{background:
 .clog-h{font-family:var(--sans);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin-bottom:5px;}
 .clog .cl-new{color:var(--ink);}
 .cl-empty{color:var(--faint);font-style:italic;}
+/* ===== ÉLAN / FUREUR ===== */
+.elanbar{display:flex;align-items:center;gap:8px;margin:-2px 0 10px;}
+.elan-l{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);}
+.elan-pips{display:flex;gap:4px;}
+.ep{width:16px;height:7px;border-radius:3px;background:rgba(255,255,255,.08);border:1px solid var(--line2);transition:.2s;}
+.ep.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 6px rgba(217,178,91,.4);}
+.ep.on.rdy{background:var(--ember);border-color:var(--ember);box-shadow:0 0 8px var(--ember);}
+.elan-rdy{font-size:10px;color:var(--ember);font-weight:700;letter-spacing:.04em;animation:rdypulse 1.2s ease-in-out infinite;}
+@keyframes rdypulse{0%,100%{opacity:.6;}50%{opacity:1;}}
+.act.fureur.rdy{border-color:var(--ember);box-shadow:0 0 14px var(--ember-soft);}
+.act.fureur.rdy .aic{color:var(--ember);}
+.act.fureur:not(.rdy){opacity:.5;}
 .mini .coin,.eq .coin,.wallet .coin{font-weight:700;}
 .shop-row{align-items:center;}
 .shop-row .mini{white-space:nowrap;}
@@ -952,6 +964,7 @@ const RELICS=[
   {id:'rempart_mobile',ic:'⊡',nom:'Rempart mobile',desc:'Chaque chasseur gagne 6 de bouclier en fin de round.'},
   {id:'second_souffle',ic:'✦',nom:'Second souffle',desc:'Une fois par combat, un chasseur survit à 1 PV au lieu de tomber.'},
   {id:'maitre_forgeron',ic:'⚒',nom:'Maître forgeron',desc:'Renforcer un équipement coûte 30% d’Or en moins.'},
+  {id:'coeur_ardent',ic:'❂',nom:'Cœur ardent',desc:'Commence chaque combat avec 2 points d’Élan.'},
   {id:'oeil_du_titan',ic:'☉',nom:'Œil du titan',desc:'+10% de dégâts et +10% PV maximum.',locked:true},
   {id:'serment_de_cendre',ic:'⛧',nom:'Serment de cendre',desc:'Toute l’escouade débute chaque combat avec 16 de bouclier.',locked:true},
 ];
@@ -1314,7 +1327,7 @@ function startCombat(depth, kind){
   g.team.forEach(h=>{ if(h.pv>0){ const ps=perkSum(h,'shield'); if(ps) h.shield=(h.shield||0)+ps; } });
   { const sa=g.team.reduce((m,h)=>Math.max(m,(h.pv>0?perkSum(h,'shieldAll'):0)),0); if(sa) g.team.forEach(h=>{ if(h.pv>0) h.shield=(h.shield||0)+sa; }); }
   if(hasRelic('serment_de_cendre')) g.team.forEach(h=>{ if(h.pv>0) h.shield=(h.shield||0)+16; });
-  g.buffAtk=null; g.secondWind=false;
+  g.buffAtk=null; g.secondWind=false; g.elan=hasRelic('coeur_ardent')?2:0;
   ui.screen='combat'; ui.target=firstLivingMon(); ui._fx=[];
   beginRound();
   if(kind==='boss'){ try{ flashScreen('rgba(208,89,77,.32)'); shake(); sfx('lose'); }catch(e){} }
@@ -1336,7 +1349,7 @@ function dmgMon(i,d){ const m=g.mons[i];
   if(hasRelic('braise_eternelle')) d=Math.round(d*1.15);
   { const p=metaMods().dmgPct; if(p) d=Math.round(d*(1+p/100)); }
   if(m.vuln>0) d=Math.round(d*1.3);
-  m.pv-=d; if(m.pv<0)m.pv=0; if(m.pv===0){ sfx('death'); fx('mon-'+i,'','death'); if(g.stats) g.stats.kills++; } _dealt+=d; fx('mon-'+i,'-'+d,'dmg'); return d; }
+  m.pv-=d; if(m.pv<0)m.pv=0; if(m.pv===0){ sfx('death'); fx('mon-'+i,'','death'); if(g.stats) g.stats.kills++; gainElan(1); } _dealt+=d; fx('mon-'+i,'-'+d,'dmg'); return d; }
 function checkDeaths(){
   g.mons.forEach((m,i)=>{ if(m.pv<=0 && m.tmpl==='pustule' && !m.exploded){ m.exploded=true;
     g.team.forEach((h,hi)=>{ if(h.pv>0) applyHeroDamage(h,hi,Math.round(m.atk*1.7)); });
@@ -1381,6 +1394,8 @@ function previewHeroDmg(m, aoe){
   return dmgToHeroVal(t,d);
 }
 
+const ELAN_MAX=6;
+function gainElan(n){ if(!g) return; g.elan=Math.min(ELAN_MAX,(g.elan||0)+n); }
 function heroAction(act){
   const hi=curHeroIdx(); if(hi<0) return; const h=g.team[hi]; const c=CLASSES[h.cls];
   ui._fx=[]; _dealt=0; sfx('click');
@@ -1389,13 +1404,14 @@ function heroAction(act){
     const magic=c.dmg==='magie';
     let d=computeDmg(heroAtk(h), g.mons[ui.target].def, magic, h.cls==='mage');
     let crit=(c.pid==='coupfourre'?0.2:0)+(heroHasProp(h,'aiguise')?0.12:0)+(hasRelic('lame_affutee')?0.1:0)+metaMods().crit+perkSum(h,'crit');
-    if(crit>0 && chance(crit)){ d=Math.round(d*1.8); fx('mon-'+ui.target,'CRIT','crit'); if(g.stats) g.stats.crits++; }
+    if(crit>0 && chance(crit)){ d=Math.round(d*1.8); fx('mon-'+ui.target,'CRIT','crit'); if(g.stats) g.stats.crits++; gainElan(1); }
     dmgMon(ui.target,d); clog(`${h.nom} attaque ${g.mons[ui.target].nom} · ${d}`);
     if(hasRelic('flamme_persistante') && monAlive(ui.target)) applyDot(g.mons[ui.target], Math.max(3,Math.round(heroAtk(h)*0.15)), 2);
+    gainElan(1);
   } else if(act==='skillA'){
-    if(h.cdA>0) return; castSkill(h,'A'); h.cdA=skillCdA(h);
+    if(h.cdA>0) return; castSkill(h,'A'); h.cdA=skillCdA(h); gainElan(1);
   } else if(act==='skillB'){
-    if(!h.skillBunlocked || h.cdB>0) return; castSkill(h,'B'); h.cdB=skillCdB(h);
+    if(!h.skillBunlocked || h.cdB>0) return; castSkill(h,'B'); h.cdB=skillCdB(h); gainElan(1);
   } else if(act==='potion'){
     if(g.inv.potions<=0) return; g.inv.potions--;
     const st=heroStats(h); const heal=healScale(Math.round(st.pvMax*(hasRelic('apothicaire')?0.75:0.5))); h.pv=Math.min(st.pvMax,h.pv+heal);
@@ -1403,6 +1419,14 @@ function heroAction(act){
   } else if(act==='defense'){
     const st=heroStats(h); const sh=Math.round(st.def*1.6+8); h.shield=(h.shield||0)+sh; h.guard=1;
     fx('hero-'+hi,'⛉+'+sh,'shield'); clog(`${h.nom} se met en garde · +${sh} bouclier, dégâts du tour réduits`);
+  } else if(act==='fureur'){
+    if((g.elan||0)<3) return; g.elan-=3;
+    if(!monAlive(ui.target)) ui.target=firstLivingMon();
+    const magic=c.dmg==='magie';
+    let d=computeDmg(Math.round(heroAtk(h)*2.4), g.mons[ui.target].def, magic, h.cls==='mage'); d=Math.round(d*1.8);
+    fx('mon-'+ui.target,'FUREUR','crit'); flashScreen('rgba(224,145,63,.26)'); shake(); sfx('crit');
+    dmgMon(ui.target,d); clog(`${h.nom} libère sa FUREUR ! · ${d}`);
+    g.team.forEach(x=>{ if(x.pv>0) x.shield=(x.shield||0)+8; });
   } else return;
 
   let lifePct=(heroHasProp(h,'vampirique')?0.25:0)+(hasRelic('pacte_de_sang')?0.15:0)+perkSum(h,'lifesteal');
@@ -1424,7 +1448,7 @@ function castSkill(h, slot){
     case 'st_dmg':{
       if(!monAlive(ui.target)) ui.target=firstLivingMon();
       let d=Math.round(atk*sk.mult*lm);
-      if(sk.crit && chance(sk.crit)){ d=Math.round(d*1.8); fx('mon-'+ui.target,'CRIT','crit'); }
+      if(sk.crit && chance(sk.crit)){ d=Math.round(d*1.8); fx('mon-'+ui.target,'CRIT','crit'); gainElan(1); }
       if(!sk.ignoreDef) d=Math.max(1,d-Math.floor(g.mons[ui.target].def*(sk.magic?0.25:0.5)));
       dmgMon(ui.target,d);
       if(c.pid==='precision'){ const tm=g.mons[ui.target]; if(tm) tm.vuln=Math.max(tm.vuln||0,2); }
@@ -1766,6 +1790,7 @@ function previewActionDmg(h,act){
     const magic=CLASSES[h.cls].dmg==='magie'; let d=estPhysMagic(Math.round(heroAtk(h)),tgt.def,magic,h.cls==='mage'); return {t:'~'+Math.round(d*globalDmgMult(tgt))}; }
   if(act==='skillA') return previewSkill(h,CLASSES[h.cls].skill,h.skillLvl);
   if(act==='skillB') return previewSkill(h,CLASSES[h.cls].skillB,h.skillBLvl);
+  if(act==='fureur'){ const tgt=(g.mons[ui.target]&&g.mons[ui.target].pv>0)?g.mons[ui.target]:g.mons[firstLivingMon()]; if(!tgt) return null; let d=estPhysMagic(Math.round(heroAtk(h)*2.4),tgt.def,CLASSES[h.cls].dmg==='magie',h.cls==='mage'); return {t:'~'+Math.round(d*1.8*globalDmgMult(tgt))}; }
   if(act==='defense'){ const st=heroStats(h); return {t:'+'+Math.round(st.def*1.6+8)+'⛉',c:'shield'}; }
   if(act==='potion') return {t:'+'+healScale(Math.round(heroStats(h).pvMax*(hasRelic('apothicaire')?0.75:0.5))),c:'heal'};
   return null;
@@ -1880,7 +1905,7 @@ const TAB_SVG={
   sac:'<path d="M7.5 8 V6 Q7.5 3.5 12 3.5 Q16.5 3.5 16.5 6 V8"/><path d="M5 8 H19 L18 20 H6 Z"/>',
 };
 function tabIc(k){ return svgIcon(TAB_SVG[k]||'', 'tab-svg'); }
-function actIc(k){ const spark='<path d="M12 3 L13.6 9.2 L20 11 L13.6 12.8 L12 19 L10.4 12.8 L4 11 L10.4 9.2 Z" fill="currentColor" stroke="none"/>'; const pot='<path d="M10 3 H14"/><path d="M11 3 V6 L8 11 V18 Q8 20 10 20 H14 Q16 20 16 18 V11 L13 6 V3"/><path d="M8.4 13 H15.6"/>'; const shieldP='<path d="M12 3 L19 6 V12 Q19 18 12 21 Q5 18 5 12 V6 Z"/>'; const m={attaque:SLOT_SVG.arme, skill:spark, potion:pot, defense:shieldP}; return svgIcon(m[k]||'', 'aic'); }
+function actIc(k){ const spark='<path d="M12 3 L13.6 9.2 L20 11 L13.6 12.8 L12 19 L10.4 12.8 L4 11 L10.4 9.2 Z" fill="currentColor" stroke="none"/>'; const pot='<path d="M10 3 H14"/><path d="M11 3 V6 L8 11 V18 Q8 20 10 20 H14 Q16 20 16 18 V11 L13 6 V3"/><path d="M8.4 13 H15.6"/>'; const shieldP='<path d="M12 3 L19 6 V12 Q19 18 12 21 Q5 18 5 12 V6 Z"/>'; const flame='<path d="M12 2.5 C13.2 7 17 8.2 15.8 13 C15.2 16 13.4 17 12 21 C10.6 17 8.8 16 8.2 13 C7 8.2 10.8 7 12 2.5 Z"/><path d="M12 11 C12.6 13 14 13.5 13.4 15.5 C13 16.6 12.5 17 12 18.5 C11.5 17 11 16.6 10.6 15.5 C10 13.5 11.4 13 12 11 Z" fill="currentColor" stroke="none"/>'; const m={attaque:SLOT_SVG.arme, skill:spark, potion:pot, defense:shieldP, fureur:flame}; return svgIcon(m[k]||'', 'aic'); }
 function depthBar(d){ const p=Math.max(2,Math.min(100,Math.round(d/WAVES*100))); return `<div class="depthbar" title="Profondeur ${d}/${WAVES}"><i style="width:${p}%"></i></div>`; }
 function monGlyph(m){ return emb(SIG.mon[m.boss?'boss':m.tmpl]||SIG.mon._); }
 function heroGlyph(cls){ return emb(SIG.hero[cls]||SIG.hero._); }
@@ -1933,7 +1958,8 @@ function viewTitle(){
 <b>Lis le terrain.</b> Sur chaque monstre, l’<b>intention</b> (⚔ dégâts, ✚ soin, ▲ rage, ✸ zone) annonce son prochain coup ; sous tes actions, l’aperçu <span class="k">~chiffre</span> indique les dégâts ou soins attendus.<br><br>
       <b>Or & forge.</b> Combats et reventes rapportent de l’<span class="k">Or ⊙</span> : dépense-le au marché pour acheter, ou à la <b>Forge</b> du camp pour renforcer tes équipements (jusqu’à +3). Au camp, chaque pièce indique si elle <span class="k">▲ améliore</span> ou <span class="k">▼ diminue</span> le chasseur.<br><br>
       <b>Défense & péril.</b> L’action <b>Défendre</b> donne un bouclier et réduit les dégâts du tour — idéale face à une <b>attaque de zone</b> annoncée. Après ta première victoire, monte le <b>Péril</b> au menu : ennemis plus coriaces, mais davantage de Trophées. Sur mobile, <b>touche une relique ou une spécialisation</b> pour voir sa description.<br><br>
-      Raccourcis combat : <span class="k">1</span> attaque · <span class="k">2</span> compétence 1 · <span class="k">3</span> compétence 2 · <span class="k">4</span> potion · <span class="k">5</span> défendre.
+      <b>Élan & Fureur.</b> Attaquer, lancer une compétence, tuer un ennemi ou critiquer remplit ta jauge d’<b>Élan</b>. À <b>3 points</b>, libère une <b>Fureur</b> : une frappe critique dévastatrice qui octroie aussi du bouclier à l’escouade. À toi de choisir : accumuler ou déchaîner.<br><br>
+      Raccourcis combat : <span class="k">1</span> attaque · <span class="k">2</span> compétence 1 · <span class="k">3</span> compétence 2 · <span class="k">4</span> potion · <span class="k">5</span> défendre · <span class="k">6</span> fureur.
     </div></details>
   </div>`;
 }
@@ -2027,12 +2053,14 @@ function viewCombat(){
     const load=['arme','armure','talisman'].map(sl=>{ const it=h.gear[sl]; return it?`<b>${gearName(it)}</b>`:'—'; }).join(' · ');
     actions=`<div class="turnbar">
       <div class="turnwho"><span class="tw-port">${heroGlyph(h.cls)}</span>Au tour de <b>${h.nom}</b>${buffNote}</div>
+      <div class="elanbar"><span class="elan-l">⚡ Élan</span><span class="elan-pips">${Array.from({length:ELAN_MAX},(_,k)=>`<span class="ep ${k<(g.elan||0)?'on':''} ${(g.elan||0)>=3&&k<3?'rdy':''}"></span>`).join('')}</span>${(g.elan||0)>=3?'<span class="elan-rdy">Fureur prête</span>':''}</div>
       <div class="actions">
         <button class="act" data-act="attaque"><span class="act-ic">${actIc('attaque')}</span><span class="act-n">Attaque</span>${pa('attaque')}</button>
         <button class="act" data-act="skillA" ${h.cdA>0?'disabled':''}><span class="act-ic">${actIc('skill')}</span><span class="act-n">${c.skill.nom}${h.cdA>0?` ⟳${h.cdA}`:''}</span>${h.cdA>0?'':pa('skillA')}</button>
         ${h.skillBunlocked?`<button class="act" data-act="skillB" ${h.cdB>0?'disabled':''}><span class="act-ic">${actIc('skill')}</span><span class="act-n">${c.skillB.nom}${h.cdB>0?` ⟳${h.cdB}`:''}</span>${h.cdB>0?'':pa('skillB')}</button>`:''}
         <button class="act" data-act="defense"><span class="act-ic">${actIc('defense')}</span><span class="act-n">Défendre</span>${pa('defense')}</button>
         <button class="act" data-act="potion" ${g.inv.potions<=0?'disabled':''}><span class="act-ic">${actIc('potion')}</span><span class="act-n">Potion${g.inv.potions>0?` ·${g.inv.potions}`:''}</span>${g.inv.potions>0?pa('potion'):''}</button>
+        <button class="act fureur ${(g.elan||0)>=3?'rdy':''}" data-act="fureur" ${(g.elan||0)<3?'disabled':''}><span class="act-ic">${actIc('fureur')}</span><span class="act-n">Fureur ${(g.elan||0)}/3</span>${(g.elan||0)>=3?pa('fureur'):''}</button>
       </div>
       <div class="who-gear"><span class="wg-stats">♥${Math.max(0,h.pv)}/${_st.pvMax} ⚔${_st.atk} ⛨${_st.def} ⚡${_st.vit}</span> · <span class="wg-load">${load}</span></div>
       ${livMons>1?`<div class="hint">Cible : ${g.mons[ui.target]?g.mons[ui.target].nom:'—'} — touche un monstre pour changer.</div>`:''}
@@ -2570,6 +2598,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='3') heroAction('skillB');
   else if(e.key==='4') heroAction('potion');
   else if(e.key==='5') heroAction('defense');
+  else if(e.key==='6') heroAction('fureur');
 });
 
 /* boot */
